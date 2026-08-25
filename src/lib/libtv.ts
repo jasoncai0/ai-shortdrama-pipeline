@@ -41,6 +41,12 @@ export interface LibtvClientOptions {
 
 export interface CreateNodeOptions {
   readonly name: string
+  /**
+   * Caller-supplied ceiling for a `--run`. Omit for video, which legitimately
+   * takes minutes; set it for short work like speech, where a task wedged at
+   * 99% would otherwise hold the pipeline for libtv's own 20-minute poll.
+   */
+  readonly timeoutMs?: number
   readonly type: 'image' | 'video' | 'text' | 'script' | 'audio'
   readonly prompt?: string
   readonly set?: Readonly<Record<string, string | number | boolean>>
@@ -79,12 +85,14 @@ export class LibtvClient {
 
     this.opts.log.debug(`libtv ${args.map(quoteForLog).join(' ')}`)
 
-    // No timeout: `--run` legitimately blocks for minutes on video models.
+    // Default to no timeout: `--run` legitimately blocks for minutes on video
+    // models. Short-form node types pass their own ceiling.
+    const timeoutMs = options.timeoutMs ?? 0
     let result = await run(this.opts.bin, args, {
       cwd: this.opts.cwd,
       log: this.opts.log,
       streamStderr: true,
-      timeoutMs: 0,
+      timeoutMs,
     })
 
     // A retried generation hits a node this client already created. libtv
@@ -97,7 +105,7 @@ export class LibtvClient {
         cwd: this.opts.cwd,
         log: this.opts.log,
         streamStderr: true,
-        timeoutMs: 0,
+        timeoutMs,
       })
     }
 

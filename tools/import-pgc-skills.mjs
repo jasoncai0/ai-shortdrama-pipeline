@@ -98,6 +98,26 @@ const DESCRIPTION_OVERRIDES = {
     '中华古风视觉设计规范：为正史考据、架空古偶、仙侠玄幻、江湖武侠四条赛道提供统一的服化道、场景陈设、传统配色与光影标准，输出结构化视觉设定与含负面清单的 AI 绘画提示词。Use when the user asks for 古装/国风/古风 costume, hairstyle, set dressing, colour palette or art direction for a specific dynasty (秦汉/魏晋/唐/宋/明) or an invented one, or wants Chinese-period-drama visual specs and prompts. Enforces dynasty-correct garment forms, rank-appropriate motifs, and exclusion of Japanese/Korean/Western/modern-influencer styling.',
 }
 
+/**
+ * Chinese recall words for skills whose source carried none.
+ *
+ * `route_profile.positive_triggers` is where this platform kept its trigger
+ * vocabulary, and folding it into `description` (below) recovers it. But three
+ * camera skills shipped no triggers at all and English-only descriptions, so a
+ * user typing 运镜 or 一镜到底 recalls nothing. These lines are authored, not
+ * derived — they name what the skill already does, in the words its users use.
+ */
+const DESCRIPTION_APPEND = {
+  'generate-camera-blocking-board':
+    '中文触发：运镜、运镜设计、机位、机位图、镜头调度、分镜运镜板、previs、摄影机走位。',
+  'longpoll-consistant':
+    '中文触发：一镜到底、长镜头、多段拼接、接缝、续拍、镜头连续性、段间衔接。',
+  'video-storyboard':
+    '中文触发：分镜、分镜图、分镜脚本、场景分镜、逐镜提示词、图生视频提示词。',
+  'manga-character-sheet': '中文触发：漫剧角色、漫剧人设。',
+  'real-short-drama': '中文触发：漫剧、竖屏剧、AI 短剧生产。',
+}
+
 const STRIP_FRONTMATTER_KEYS = new Set([
   'namespace',
   'route_profile',
@@ -146,6 +166,35 @@ const readTopLevelScalars = (frontmatter) => {
     out[key] = value.replace(/^["']|["']$/g, '').trim()
   }
   return out
+}
+
+const CJK = /[\u4e00-\u9fff]/
+
+/**
+ * Pulls `route_profile.positive_triggers` out of the frontmatter.
+ *
+ * The block itself is dropped — it is another platform's routing mechanism —
+ * but the Chinese entries inside it are the only Chinese recall vocabulary some
+ * skills have. Deleting the block wholesale silently removed it, which is how
+ * `smart-title-sequence` lost 「AI短剧片头」.
+ */
+const readPositiveTriggers = (frontmatter) => {
+  const match = /positive_triggers:\s*\n((?:\s+-\s.*\n)+)/.exec(frontmatter)
+  if (!match) return []
+  return match[1]
+    .split('\n')
+    .map((line) => line.trim().replace(/^-\s*/, '').replace(/^["']|["']$/g, '').trim())
+    .filter(Boolean)
+}
+
+/** Appends the Chinese triggers a description does not already imply. */
+const foldTriggers = (description, triggers) => {
+  const missing = triggers.filter((t) => CJK.test(t) && !description.includes(t))
+  if (missing.length === 0) return { text: description, added: [] }
+  return {
+    text: `${description} 中文触发：${missing.join('、')}。`,
+    added: missing,
+  }
 }
 
 const yamlQuote = (value) => `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
@@ -338,7 +387,18 @@ const convertOne = async (sourceDir, key, outDir, options) => {
   if (override) {
     process.stderr.write(`note  ${key}: description replaced (source was too thin to route on)\n`)
   }
-  const description = override ?? sourceDescription
+  const base = override ?? sourceDescription
+  const folded = foldTriggers(base, readPositiveTriggers(frontmatter))
+  const appended = DESCRIPTION_APPEND[key]
+  const description =
+    appended && !folded.text.includes('中文触发')
+      ? `${folded.text} ${appended}`
+      : appended
+        ? `${folded.text.replace(/。$/, '')}、${appended.replace('中文触发：', '')}`
+        : folded.text
+  if (folded.added.length > 0) {
+    process.stderr.write(`note  ${key}: recovered ${folded.added.length} Chinese trigger(s) into the description\n`)
+  }
   if (description.trim().length < 60) {
     // Recall is description-matching. "Skill for 古装视觉设计." routes on
     // nothing, so flag it rather than importing a skill that can never fire.

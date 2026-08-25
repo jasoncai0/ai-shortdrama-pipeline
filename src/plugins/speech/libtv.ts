@@ -42,6 +42,11 @@ export default definePlugin<SpeechPort>({
     // female-shaonv (the model default), audiobook_male_1/female_1.
     const fallbackVoice = asString(options['voice'])
     const defaultSpeed = numberOption(options['speed'], 1)
+    // Speech normally returns in seconds. A task that wedges at 99% would
+    // otherwise consume libtv's own 20-minute poll — and then the retry
+    // middleware would spend it again. Fail fast so one bad line costs a
+    // couple of minutes, not most of an hour.
+    const timeoutMs = numberOption(options['timeoutMs'], 180_000)
 
     return {
       name: 'libtv',
@@ -63,6 +68,7 @@ export default definePlugin<SpeechPort>({
           type: 'audio',
           prompt: req.text,
           run: true,
+          timeoutMs,
           set: {
             model,
             // libtv requires the catalog scene explicitly for this model, and
