@@ -40,11 +40,12 @@ CLI ──► Kernel (pipeline runner · registry · domain model)
 | `state` | `localjson` | localjson |
 | `ledger` | `noop`, `localledger` | **noop** |
 | `export` | `ffmpeg` | ffmpeg |
+| `speech` | `libtv`, `stub` | stub |
 | `music` | `local`, `openverse`, `libtv`, `multi`, `stub` | multi |
 | `post` | `ffmpeg`, `none` | ffmpeg |
 | `promptStrategy` | `template`, `skill-anchored` | skill-anchored |
 | `middleware` | `retry`, `prompt-tune`, `camera-grammar`, `tuning-log` | all four |
-| `stage` | `import`, `import-script`, `plan`, `assets`, `refs`, `sheets`, `shots`, `camera-check`, `prompts`, `images`, `videos`, `cover`, `music`, `subtitles`, `gate`, `export` | — |
+| `stage` | `import`, `import-script`, `plan`, `assets`, `refs`, `sheets`, `shots`, `camera-check`, `prompts`, `images`, `videos`, `dub`, `cover`, `music`, `subtitles`, `gate`, `export` | — |
 
 External plugins: `"impl": "npm:my-plugin"` or `"impl": "file:./my-plugin.js"`.
 Any module default-exporting a `definePlugin({...})` works.
@@ -167,6 +168,25 @@ dolly-in → travels forward at a constant slow walking pace, subject distance
   unknown moves, two moves in one shot, runs of identical setups (per episode,
   so a scene change is not mistaken for a flat sequence), and shots with no
   camera plan. `failOn: "problems"` stops the run before anything is paid for.
+
+### Dubbing is per shot, and casting is per character
+
+`dub` synthesises each shot's dialogue and mixes it onto that shot's clip
+before `export` concatenates. Per shot rather than one track over the finished
+cut, because sync is the whole job: clip lengths come back with fractional
+drift, and a single track laid over a concatenation of those drifts is out of
+step within a minute.
+
+`voices` maps character name → provider voice id, so one character keeps one
+voice across every episode — the audio equivalent of `@base`. `narratorVoice`
+is separate, because the `(OS)` voice is not a person in the scene. An uncast
+character is voiced with the adapter default **and named in a warning**, since
+a silent fallback lets two brothers share a voice unnoticed.
+
+A dubbed shot then carries two clips: the silent original and the voiced mix,
+which `padToVoice` can make longer. Everything downstream resolves the picture
+through `renderedClip(shot)` — export and subtitles disagreeing about which one
+is the picture is exactly how captions drift off the cut.
 
 ### Score: your library, then open search, then generation
 

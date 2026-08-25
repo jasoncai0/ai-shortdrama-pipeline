@@ -130,6 +130,31 @@ export interface VideoPort extends Plugin {
   generate(req: VideoRequest): Promise<readonly AssetRef[]>
 }
 
+// ─── speech ───────────────────────────────────────────────────────────────
+
+export interface SpeechCaps {
+  readonly maxChars: number
+  readonly maxConcurrency: number
+  /** Voice ids the adapter accepts; empty means "anything the provider takes". */
+  readonly voices: readonly string[]
+}
+
+export interface SpeechRequest {
+  readonly text: string
+  /** Provider voice id. Cast per character so one actor keeps one voice. */
+  readonly voice?: string
+  /** 1 = natural. Below 1 is slower. */
+  readonly speed?: number
+  readonly params?: Readonly<Record<string, unknown>>
+  readonly idempotencyKey: string
+  readonly label?: string
+}
+
+export interface SpeechPort extends Plugin {
+  readonly caps: SpeechCaps
+  synthesize(req: SpeechRequest): Promise<readonly AssetRef[]>
+}
+
 // ─── generate middleware (tuning seam #2) ─────────────────────────────────
 
 export interface MiddlewareContext {
@@ -153,6 +178,15 @@ export interface GenerateMiddleware extends Plugin {
     req: VideoRequest,
     ctx: MiddlewareContext,
     next: (r: VideoRequest) => Promise<readonly AssetRef[]>,
+  ): Promise<readonly AssetRef[]>
+  /**
+   * Speech is a paid provider call like the others, so retry and logging must
+   * reach it too — the alternative is a transient timeout losing a line.
+   */
+  speech?(
+    req: SpeechRequest,
+    ctx: MiddlewareContext,
+    next: (r: SpeechRequest) => Promise<readonly AssetRef[]>,
   ): Promise<readonly AssetRef[]>
 }
 
@@ -224,31 +258,6 @@ export interface MusicPort extends Plugin {
   readonly caps: MusicCaps
   /** Offers candidates. Choosing between them is the stage's job, not the port's. */
   find(brief: MusicBrief, limit: number): Promise<readonly MusicCandidate[]>
-}
-
-// ─── speech ───────────────────────────────────────────────────────────────
-
-export interface SpeechCaps {
-  readonly maxChars: number
-  readonly maxConcurrency: number
-  /** Voice ids the adapter accepts; empty means "anything the provider takes". */
-  readonly voices: readonly string[]
-}
-
-export interface SpeechRequest {
-  readonly text: string
-  /** Provider voice id. Cast per character so one actor keeps one voice. */
-  readonly voice?: string
-  /** 1 = natural. Below 1 is slower. */
-  readonly speed?: number
-  readonly params?: Readonly<Record<string, unknown>>
-  readonly idempotencyKey: string
-  readonly label?: string
-}
-
-export interface SpeechPort extends Plugin {
-  readonly caps: SpeechCaps
-  synthesize(req: SpeechRequest): Promise<readonly AssetRef[]>
 }
 
 // ─── post production ──────────────────────────────────────────────────────

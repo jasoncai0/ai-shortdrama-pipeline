@@ -285,3 +285,110 @@ describe('spokenSeconds', () => {
     expect(spokenSeconds('字'.repeat(400), opts)).toBe(12)
   })
 })
+
+describe('spreadNarration', () => {
+  const load = async () => (await import('../src/plugins/stage/import-script.js')).spreadNarration
+  const opts = { maxSeconds: 5, charsPerSecond: 5 }  // 25 chars per shot
+
+  test('leaves narration that already fits where it is', async () => {
+    const spread = await load()
+    const out = spread([{ narration: '短旁白。' }, {}], opts)
+    expect(out[0]?.narration).toBe('短旁白。')
+    expect(out[1]?.narration).toBeUndefined()
+  })
+
+  test('moves the overflow onto later shots instead of truncating it', async () => {
+    const spread = await load()
+    const long = '第一句话在这里。第二句话在这里。第三句话在这里。第四句话在这里。'
+    const out = spread([{ narration: long }, {}, {}], opts)
+
+    const rejoined = out.map((e) => e.narration ?? '').join('')
+    expect(rejoined).toBe(long)          // nothing lost
+    expect(out[1]?.narration).toBeTruthy() // and it did move
+  })
+
+  test('breaks only at sentence ends, never mid-sentence', async () => {
+    const spread = await load()
+    const out = spread([{ narration: '甲乙丙丁戊己庚辛壬癸。子丑寅卯辰巳午未申酉。' }, {}], opts)
+    for (const e of out) {
+      if (e.narration) expect(e.narration).toMatch(/[。！？…]$/)
+    }
+  })
+
+  test('splits a comma-spliced sentence no shot could hold', async () => {
+    const spread = await load()
+    const monster = '甲乙丙丁,戊己庚辛,壬癸子丑,寅卯辰巳,午未申酉,戌亥甲乙,丙丁戊己。'
+    const out = spread([{ narration: monster }, {}, {}, {}], opts)
+
+    expect(out.map((e) => e.narration ?? '').join('')).toBe(monster)
+    expect(out.filter((e) => e.narration).length).toBeGreaterThan(1)
+  })
+
+  test('dialogue eats into what narration a shot can carry', async () => {
+    const spread = await load()
+    const narration = '第一句。第二句。第三句。'
+    const withTalk = spread([{ narration, dialogue: '这是一句很长的台词占满了这个镜头' }, {}], opts)
+    const without = spread([{ narration }, {}], opts)
+
+    expect((withTalk[0]?.narration ?? '').length).toBeLessThanOrEqual(
+      (without[0]?.narration ?? '').length,
+    )
+  })
+
+  test('closing narration lands on the last shot rather than being dropped', async () => {
+    const spread = await load()
+    const long = '一句。'.repeat(20)
+    const out = spread([{ narration: long }, {}], opts)
+    expect(out.map((e) => e.narration ?? '').join('')).toBe(long)
+  })
+})
+
+describe('spreadNarration order', () => {
+  test('never reorders narration to make a later sentence fit', async () => {
+    const { spreadNarration } = await import('../src/plugins/stage/import-script.js')
+    // Middle sentence is long; the short one after it must NOT jump ahead.
+    const narration = '第一。' + '中间很长的一句话反复出现'.repeat(6) + '。最后一句。'
+    const out = spreadNarration([{ narration }, {}, {}, {}, {}], {
+      maxSeconds: 5,
+      charsPerSecond: 5,
+    })
+
+    const rejoined = out.map((e) => e.narration ?? '').join('')
+    expect(rejoined).toBe(narration)                       // nothing lost
+    expect(rejoined.indexOf('第一。')).toBe(0)              // and nothing overtakes
+    expect(rejoined.endsWith('最后一句。')).toBe(true)
+  })
+
+  test('reading the shots in order reproduces the script exactly', async () => {
+    const { spreadNarration } = await import('../src/plugins/stage/import-script.js')
+    const a = '承平二年,东靖。'
+    const b = '书圣王希之在兰亭与友人雅集,写下了《兰亭叙》;谢晏还隐居在会稽东山,携妓优游。'
+    const c = '已经两次北伐,打到了故都洛京。'
+    const out = spreadNarration([{ narration: a + b + c }, {}, {}, {}], {
+      maxSeconds: 12,
+      charsPerSecond: 5,
+    })
+    expect(out.map((e) => e.narration ?? '').join('')).toBe(a + b + c)
+  })
+})
+
+describe('speech middleware', () => {
+  test('retry covers speech, so one timeout does not lose a line', async () => {
+    const retry = (await import('../src/plugins/middleware/retry.js')).default
+    const mw = (await retry.create({ attempts: 3, baseDelayMs: 1 }, deps())) as GenerateMiddleware
+
+    let calls = 0
+    const out = await mw.speech?.(
+      { text: '你!目无尊长!', idempotencyKey: 'k', label: 'ep3-s09' },
+      { project: project([]), log },
+      async () => {
+        calls += 1
+        if (calls < 3) throw new Error('请求超时，请稍后重试')
+        return [{ id: 'a', uri: 'file:///v.mp3', mime: 'audio/mpeg', meta: {} }]
+      },
+    )
+
+    expect(calls).toBe(3)
+    expect(out?.[0]?.id).toBe('a')
+  })
+})

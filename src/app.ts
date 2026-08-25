@@ -1,5 +1,5 @@
 import { normalizeMiddleware, normalizeStages } from './kernel/config.js'
-import { wrapImagePort, wrapVideoPort } from './kernel/middleware.js'
+import { wrapImagePort, wrapSpeechPort, wrapVideoPort } from './kernel/middleware.js'
 import { PluginRegistry } from './kernel/registry.js'
 import { builtins } from './plugins/builtins.js'
 import type { Config, NormalizedStage } from './kernel/config.js'
@@ -42,7 +42,7 @@ export const buildApp = async (
 ): Promise<App> => {
   const registry = new PluginRegistry(builtins, { log, cwd })
 
-  const [llm, rawImage, rawVideo, assetStore, state, ledger, exporter, speech, music, post, promptStrategy] =
+  const [llm, rawImage, rawVideo, assetStore, state, ledger, exporter, rawSpeech, music, post, promptStrategy] =
     await Promise.all([
       registry.load<LLMPort>('llm', config.ports.llm.impl, config.ports.llm.options),
       registry.load<ImagePort>('image', config.ports.image.impl, config.ports.image.options),
@@ -86,6 +86,7 @@ export const buildApp = async (
 
   const image = wrapImagePort(rawImage, middleware, getProject, log)
   const video = wrapVideoPort(rawVideo, middleware, getProject, log)
+  const speech = wrapSpeechPort(rawSpeech, middleware, getProject, log)
 
   const stages = normalizeStages(config)
   const stagePlugins = new Map<string, StagePort>()

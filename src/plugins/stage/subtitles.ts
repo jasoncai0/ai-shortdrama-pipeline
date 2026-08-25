@@ -1,6 +1,7 @@
 import { stateError } from '../../kernel/errors.js'
 import { definePlugin } from '../../kernel/registry.js'
 import type { StagePort, SubtitleCue } from '../../kernel/ports.js'
+import { renderedClip } from '../../kernel/types.js'
 import type { AssetRef } from '../../kernel/types.js'
 
 /**
@@ -66,7 +67,7 @@ export default definePlugin<StagePort>({
       }
 
       const ordered = [...project.shots]
-        .filter((s) => s.clip)
+        .filter((s) => renderedClip(s))
         .sort((a, b) => {
           const byEpisode = a.episodeId.localeCompare(b.episodeId)
           return byEpisode !== 0 ? byEpisode : a.order - b.order
@@ -75,7 +76,9 @@ export default definePlugin<StagePort>({
       const clips = ordered.map((shot) => {
         const text = shot.dialogue?.trim()
         const cue: SubtitleCue | undefined = text ? { shotId: shot.id, text } : undefined
-        return { ref: shot.clip as AssetRef, cue }
+        // The same clip export concatenated — a dubbed shot's voiced mix can
+        // be longer than its silent original.
+        return { ref: renderedClip(shot) as AssetRef, cue }
       })
 
       const withText = clips.filter((c) => c.cue).length

@@ -1,5 +1,7 @@
 import type {
   GenerateMiddleware,
+  SpeechPort,
+  SpeechRequest,
   ImagePort,
   ImageRequest,
   Logger,
@@ -79,3 +81,24 @@ const contextFor = (
 
 const decorate = (name: string, chain: readonly GenerateMiddleware[]): string =>
   chain.length === 0 ? name : `${name}+mw(${chain.map((m) => m.name).join(',')})`
+
+export const wrapSpeechPort = (
+  port: SpeechPort,
+  chain: readonly GenerateMiddleware[],
+  getProject: () => Project,
+  log: Logger,
+): SpeechPort => {
+  const applicable = chain.filter((m) => typeof m.speech === 'function')
+
+  const invoke = (index: number, req: SpeechRequest): Promise<readonly AssetRef[]> => {
+    const mw = applicable[index]
+    if (!mw?.speech) return port.synthesize(req)
+    return mw.speech(req, contextFor(getProject, req.label, log), (next) => invoke(index + 1, next))
+  }
+
+  return {
+    name: decorate(port.name, applicable),
+    caps: port.caps,
+    synthesize: (req) => invoke(0, req),
+  }
+}

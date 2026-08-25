@@ -38,6 +38,8 @@ export default definePlugin<SpeechPort>({
       cwd: deps.cwd,
     })
     const model = asString(options['model']) ?? 'Minimax-speech-2.8-hd'
+    // Verified voice ids on this provider: male-qn-jingying, female-yujie,
+    // female-shaonv (the model default), audiobook_male_1/female_1.
     const fallbackVoice = asString(options['voice'])
     const defaultSpeed = numberOption(options['speed'], 1)
 
@@ -63,7 +65,10 @@ export default definePlugin<SpeechPort>({
           run: true,
           set: {
             model,
-            ...(voice ? { voice: voice } : {}),
+            // libtv requires the catalog scene explicitly for this model, and
+            // the voice key is the schema's `originalField`, not "voice".
+            scene: asString(options['scene']) ?? 'Text-to-Speech',
+            ...(voice ? { voice_setting_voice_id: voice } : {}),
             speed: clamp(req.speed ?? defaultSpeed, 0.5, 2),
             ...scalarParams(req.params),
           },

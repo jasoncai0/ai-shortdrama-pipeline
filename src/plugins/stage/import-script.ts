@@ -44,9 +44,17 @@ import type { ParsedEpisode, ParsedLine, ParsedScript } from '../../lib/script-p
  *                        (unhurried Mandarin delivery; raise for faster reads)
  *   minShotSeconds       default 3
  *   maxShotSeconds       default 12
- *   includeNarration     include (OS) lines as shots. Default false — narration
- *                        is exposition ("a soul from 1600 years later"), not a
- *                        picture, and it carries no character to anchor on.
+ *   includeNarration     include (OS) lines as shots of their own. Default
+ *                        false — narration is exposition ("a soul from 1600
+ *                        years later"), not a picture, and it carries no
+ *                        character to anchor on.
+ *   attachNarration      instead of discarding those lines, hang each one on
+ *                        the NEXT visual shot as `shot.narration`, where `dub`
+ *                        speaks it over the picture. Default true. In this genre
+ *                        the (OS) voice carries much of the runtime, so
+ *                        dropping it outright loses a third of each episode —
+ *                        but giving it its own frame means inventing a picture
+ *                        for a disembodied voice.
  */
 export default definePlugin<StagePort>({
   port: 'stage',
@@ -128,6 +136,7 @@ export default definePlugin<StagePort>({
       const maxShotSeconds = numberOption(options['maxShotSeconds'], 12)
       const maxShots = numberOption(options['maxShotsPerEpisode'], 0)
       const includeNarration = options['includeNarration'] === true
+      const attachNarration = options['attachNarration'] !== false
 
       // Only characters that actually appear in the selected episodes get a
       // reference image — otherwise a 1-episode run pays for 16 portraits.
@@ -169,23 +178,61 @@ export default definePlugin<StagePort>({
       let skippedNarration = 0
 
       for (const parsedEpisode of selected) {
-        const visual = parsedEpisode.scenes.flatMap((s) =>
-          s.lines
-            .filter((line) => {
-              if (line.kind === 'subtitle') {
-                skippedSubtitles += 1
-                return false
-              }
-              if (line.kind === 'os' && !includeNarration) {
-                skippedNarration += 1
-                return false
-              }
-              return line.text.length > 0
-            })
-            .map((line) => ({ line, sceneName: s.name, timeOfDay: s.timeOfDay })),
-        )
+        const visual = parsedEpisode.scenes.flatMap((s) => {
+          const entries: {
+            line: (typeof s.lines)[number]
+            sceneName: string
+            timeOfDay: string
+            narration?: string
+          }[] = []
+          // Narration waits for the next picture it can sit over. Anything
+          // still waiting at the end of a scene attaches to the last shot
+          // rather than being lost.
+          let held: string[] = []
 
-        const capped = maxShots > 0 ? visual.slice(0, maxShots) : visual
+          for (const line of s.lines) {
+            if (line.kind === 'subtitle') {
+              skippedSubtitles += 1
+              continue
+            }
+            if (line.kind === 'os' && !includeNarration) {
+              skippedNarration += 1
+              if (attachNarration && line.text.length > 0) held.push(line.text)
+              continue
+            }
+            if (line.text.length === 0) continue
+
+            entries.push({
+              line,
+              sceneName: s.name,
+              timeOfDay: s.timeOfDay,
+              ...(held.length > 0 ? { narration: held.join(' ') } : {}),
+            })
+            held = []
+          }
+
+          const last = entries.at(-1)
+          if (held.length > 0 && last) {
+            entries[entries.length - 1] = {
+              ...last,
+              narration: [last.narration, held.join(' ')].filter(Boolean).join(' '),
+            }
+          }
+          return entries
+        })
+
+        const spread =
+          timing === 'dialogue' && attachNarration
+            ? spreadNarration(
+                visual.map((e) => ({
+                  ...e,
+                  dialogue: e.line.kind === 'dialogue' ? e.line.text : undefined,
+                })),
+                { maxSeconds: maxShotSeconds, charsPerSecond },
+              )
+            : visual
+
+        const capped = maxShots > 0 ? spread.slice(0, maxShots) : spread
         if (capped.length === 0) {
           deps.log.warn(`import-script: episode ${parsedEpisode.index} has no visual lines`)
           continue
@@ -199,12 +246,17 @@ export default definePlugin<StagePort>({
             order: i + 1,
             durationSeconds:
               timing === 'dialogue'
-                ? spokenSeconds(entry.line.kind === 'dialogue' ? entry.line.text : undefined, {
-                    charsPerSecond,
-                    fallback: shotSeconds,
-                    min: minShotSeconds,
-                    max: maxShotSeconds,
-                  })
+                ? spokenSeconds(
+                    [entry.line.kind === 'dialogue' ? entry.line.text : '', entry.narration ?? '']
+                      .filter(Boolean)
+                      .join(' ') || undefined,
+                    {
+                      charsPerSecond,
+                      fallback: shotSeconds,
+                      min: minShotSeconds,
+                      max: maxShotSeconds,
+                    },
+                  )
                 : shotSeconds,
             plotDescription: plotOf(entry.line),
             shotSize: shotSizeOf(entry.line),
@@ -213,6 +265,7 @@ export default definePlugin<StagePort>({
             emotion: undefined,
             lightingAndAtmosphere: lightingOf(entry.timeOfDay),
             dialogue: entry.line.kind === 'dialogue' ? entry.line.text : undefined,
+            narration: entry.narration,
             characterIds: names
               .map((n) => characterIdByName.get(n))
               .filter((id): id is string => Boolean(id)),
@@ -234,7 +287,9 @@ export default definePlugin<StagePort>({
       }
       if (skippedNarration > 0) {
         deps.log.info(
-          `import-script: skipped ${skippedNarration} (OS) narration line(s) — set includeNarration:true to keep them`,
+          attachNarration
+            ? `import-script: ${skippedNarration} (OS) line(s) attached to shots as narration for the dub stage`
+            : `import-script: skipped ${skippedNarration} (OS) narration line(s) — set attachNarration or includeNarration to keep them`,
         )
       }
 
@@ -390,3 +445,112 @@ export const spokenSeconds = (
 
 const clampSeconds = (n: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, Math.round(n)))
+
+/**
+ * Moves narration that cannot be spoken inside one shot onto the shots that
+ * follow it.
+ *
+ * Without this, a long (OS) block lands whole on the next picture, the shot is
+ * clamped to `maxSeconds`, and the tail of the line is simply cut off in the
+ * mix — losing script that the audience needed. Spreading it forward keeps
+ * every word and keeps every shot inside the length a video model will accept.
+ *
+ * Splits on sentence punctuation, never mid-sentence: half a clause spoken over
+ * one shot and finished over the next reads as a mistake, where a complete
+ * sentence per picture reads as narration.
+ */
+export const spreadNarration = <T extends { narration?: string; dialogue?: string }>(
+  entries: readonly T[],
+  opts: { readonly maxSeconds: number; readonly charsPerSecond: number },
+): readonly T[] => {
+  const capacity = Math.max(1, Math.floor(opts.maxSeconds * opts.charsPerSecond))
+  const out = entries.map((e) => ({ ...e }))
+  let carried: string[] = []
+
+  for (let i = 0; i < out.length; i += 1) {
+    const entry = out[i]
+    if (!entry) continue
+
+    const sentences = [...carried, ...splitSentences(entry.narration ?? '')]
+    carried = []
+    if (sentences.length === 0) {
+      delete entry.narration
+      continue
+    }
+
+    // Dialogue is spoken by someone on screen and cannot be moved, so it eats
+    // into what narration this shot can carry.
+    const budget = Math.max(0, capacity - (entry.dialogue?.trim().length ?? 0))
+
+    // A single sentence longer than any shot can hold has to break somewhere;
+    // clause boundaries are the least bad place, and far better than the mix
+    // silently cutting the tail off.
+    const units = sentences.flatMap((sentence) =>
+      sentence.length > budget ? splitClauses(sentence, budget) : [sentence],
+    )
+
+    const kept: string[] = []
+    let used = 0
+    for (const [index, unit] of units.entries()) {
+      // Always keep the first unit, even an over-long one: pushing it forever
+      // would drop it at the end of the episode.
+      if (kept.length > 0 && used + unit.length > budget) {
+        // Everything from here on carries, not just this unit. Skipping ahead
+        // to a shorter later sentence would reorder the narration, and for
+        // spoken prose order IS the meaning — a scrambled read is worse than
+        // a long one.
+        carried.push(...units.slice(index))
+        break
+      }
+      kept.push(unit)
+      used += unit.length
+    }
+
+    if (kept.length > 0) entry.narration = kept.join('')
+    else delete entry.narration
+  }
+
+  // Whatever is still in hand belongs to the last shot; truncating instead
+  // would silently lose the episode's closing voice-over.
+  const last = out.at(-1)
+  if (carried.length > 0 && last) {
+    last.narration = [last.narration, carried.join('')].filter(Boolean).join('')
+  }
+  return out
+}
+
+/** Keeps the terminator with its sentence so the read still sounds right. */
+const splitSentences = (text: string): readonly string[] => {
+  const trimmed = text.trim()
+  if (trimmed.length === 0) return []
+  return trimmed.match(/[^。！？!?…]*[。！？!?…]+|[^。！？!?…]+/g) ?? [trimmed]
+}
+
+/**
+ * Last-resort break for a sentence no shot can hold. Prefers clause
+ * punctuation; falls back to a hard character split only when a clause is
+ * itself too long, which in practice means unpunctuated prose.
+ */
+const splitClauses = (sentence: string, budget: number): readonly string[] => {
+  const clauses = sentence.match(/[^，,、；;：:]*[，,、；;：:]+|[^，,、；;：:]+/g) ?? [sentence]
+  const out: string[] = []
+  let current = ''
+
+  for (const clause of clauses) {
+    if (current.length > 0 && current.length + clause.length > budget) {
+      out.push(current)
+      current = ''
+    }
+    if (clause.length > budget) {
+      if (current.length > 0) {
+        out.push(current)
+        current = ''
+      }
+      for (let i = 0; i < clause.length; i += budget) out.push(clause.slice(i, i + budget))
+      continue
+    }
+    current += clause
+  }
+  if (current.length > 0) out.push(current)
+  return out
+}

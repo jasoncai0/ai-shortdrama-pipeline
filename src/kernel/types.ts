@@ -187,6 +187,18 @@ export interface Project {
   readonly adapterState: Readonly<Record<string, unknown>>
 }
 
+/**
+ * The clip that IS the picture for a shot.
+ *
+ * A dubbed shot carries two: the silent original and the voiced mix, and with
+ * `padToVoice` the voiced one is longer. Export concatenating one while
+ * subtitles time the other walks the captions off the picture — which is
+ * exactly what happened. Both callers go through here so they cannot diverge
+ * again.
+ */
+export const renderedClip = (shot: Shot): AssetRef | undefined =>
+  shot.voicedClip ?? shot.clip
+
 export const findCharacter = (
   project: Project,
   id: string,

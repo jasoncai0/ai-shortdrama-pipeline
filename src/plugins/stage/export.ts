@@ -1,5 +1,6 @@
 import { definePlugin } from '../../kernel/registry.js'
 import type { StagePort } from '../../kernel/ports.js'
+import { renderedClip } from '../../kernel/types.js'
 import type { AssetRef } from '../../kernel/types.js'
 
 /**
@@ -28,7 +29,7 @@ export default definePlugin<StagePort>({
       // A voiced clip supersedes the silent one; the clean version stays in
       // the store under its own key, so this is a preference, not a loss.
       const clips = ordered
-        .map((shot) => shot.voicedClip ?? shot.clip)
+        .map(renderedClip)
         .filter((clip): clip is AssetRef => Boolean(clip))
       const voiced = ordered.filter((shot) => shot.voicedClip).length
       if (voiced > 0) {

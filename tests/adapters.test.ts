@@ -10,8 +10,9 @@ import localledger from '../src/plugins/ledger/localledger.js'
 import noopLedger from '../src/plugins/ledger/noop.js'
 import libtvImage from '../src/plugins/image/libtv.js'
 import libtvVideo from '../src/plugins/video/libtv.js'
+import libtvSpeech from '../src/plugins/speech/libtv.js'
 import promptTune from '../src/plugins/middleware/prompt-tune.js'
-import type { AssetStorePort, ImagePort, LedgerPort, StatePort, VideoPort } from '../src/kernel/ports.js'
+import type { AssetStorePort, ImagePort, LedgerPort, SpeechPort, StatePort, VideoPort } from '../src/kernel/ports.js'
 import type { PluginDeps } from '../src/kernel/registry.js'
 import type { AssetRef, Project } from '../src/kernel/types.js'
 
@@ -474,5 +475,47 @@ describe('prompt profiles', () => {
   test('an unknown profile fails loudly with the available location', async () => {
     const { loadProfile } = await import('../src/lib/profile.js')
     await expect(loadProfile(work, './prompts/profiles', 'nope')).rejects.toThrow(/not found/)
+  })
+})
+
+describe('libtv speech adapter', () => {
+  test('sends the voice id under the schema field the model actually wants', async () => {
+    const { bin, argsFile } = await fakeLibtv('tts', 'https://cdn/a.mp3')
+    const port = (await libtvSpeech.create({ bin, canvas: 'c' }, deps())) as SpeechPort
+
+    await port.synthesize({ text: '你看见了什么', voice: 'male-qn-jingying', idempotencyKey: 'k', label: 's1' })
+
+    const args = await argsOf(argsFile)
+    // Not `voice=`: the schema exposes it as voice_setting_voice_id.
+    expect(args).toContain('voice_setting_voice_id=male-qn-jingying')
+    expect(args).toContain('-t')
+    expect(args).toContain('audio')
+    // The model needs its catalogue scene named explicitly.
+    expect(args).toContain('scene=Text-to-Speech')
+  })
+
+  test('clamps speed into the range the provider accepts', async () => {
+    const { bin, argsFile } = await fakeLibtv('tts-speed', 'https://cdn/b.mp3')
+    const port = (await libtvSpeech.create({ bin, canvas: 'c' }, deps())) as SpeechPort
+
+    await port.synthesize({ text: 'x', speed: 9, idempotencyKey: 'k' })
+    expect(await argsOf(argsFile)).toContain('speed=2')
+  })
+
+  test('omits the voice field entirely when none is cast', async () => {
+    const { bin, argsFile } = await fakeLibtv('tts-novoice', 'https://cdn/c.mp3')
+    const port = (await libtvSpeech.create({ bin, canvas: 'c' }, deps())) as SpeechPort
+
+    await port.synthesize({ text: 'x', idempotencyKey: 'k' })
+    expect((await argsOf(argsFile)).some((a) => a.startsWith('voice_setting_voice_id='))).toBe(false)
+  })
+
+  test('carries the voice through on the returned asset, for later audit', async () => {
+    const { bin } = await fakeLibtv('tts-meta', 'https://cdn/d.mp3')
+    const port = (await libtvSpeech.create({ bin, canvas: 'c' }, deps())) as SpeechPort
+
+    const [asset] = await port.synthesize({ text: 'x', voice: 'female-yujie', idempotencyKey: 'k' })
+    expect(asset?.meta['voice']).toBe('female-yujie')
+    expect(asset?.uri).toBe('https://cdn/d.mp3')
   })
 })

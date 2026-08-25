@@ -40,6 +40,8 @@ export default definePlugin<GenerateMiddleware>({
       name: 'retry',
       image: (req, _ctx, next) => withRetry(`image ${req.label ?? req.idempotencyKey}`, () => next(req)),
       video: (req, _ctx, next) => withRetry(`video ${req.label ?? req.idempotencyKey}`, () => next(req)),
+      speech: (req, _ctx, next) =>
+        withRetry(`speech ${req.label ?? req.idempotencyKey}`, () => next(req)),
     }
   },
 })
