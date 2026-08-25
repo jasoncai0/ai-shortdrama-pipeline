@@ -12,6 +12,15 @@ export interface SubtitleEntry {
   readonly start: number
   readonly end: number
   readonly text: string
+  /**
+   * Narration is italicised — the standard voice-over convention, and the only
+   * styling SRT carries that libass will actually render. Without it a viewer
+   * cannot tell the narrator from a character, and in this genre that is the
+   * difference between knowing who knows what and not.
+   */
+  readonly kind?: 'dialogue' | 'narration'
+  /** Prefixed to a character's line when `showSpeaker` is on. */
+  readonly speaker?: string
 }
 
 /** `HH:MM:SS,mmm` — SRT wants a comma before the milliseconds, not a period. */
@@ -36,9 +45,40 @@ export interface SrtOptions {
   readonly gapSeconds: number
   /** Wrap长 lines; 0 disables. */
   readonly maxCharsPerLine: number
+  /** Italicise narration cues. */
+  readonly markNarration: boolean
+  /** Prefix a character's line with `名字：`. */
+  readonly showSpeaker: boolean
 }
 
-const DEFAULTS: SrtOptions = { minCueSeconds: 0.8, gapSeconds: 0.04, maxCharsPerLine: 20 }
+const DEFAULTS: SrtOptions = {
+  minCueSeconds: 0.8,
+  gapSeconds: 0.04,
+  maxCharsPerLine: 20,
+  markNarration: true,
+  showSpeaker: false,
+}
+
+/**
+ * Applies the speaker/narration convention.
+ *
+ * The speaker prefix goes on before wrapping so it counts toward line length,
+ * but the italic tags go on AFTER — wrapping a string that already contains
+ * markup will happily split `</i>` down the middle.
+ */
+export const decorateCue = (
+  entry: SubtitleEntry,
+  opts: SrtOptions,
+  wrapText: (text: string) => string,
+): string => {
+  const prefixed =
+    opts.showSpeaker && entry.kind !== 'narration' && entry.speaker
+      ? `${entry.speaker}：${entry.text.trim()}`
+      : entry.text.trim()
+
+  const wrapped = wrapText(prefixed)
+  return opts.markNarration && entry.kind === 'narration' ? `<i>${wrapped}</i>` : wrapped
+}
 
 export const buildSrt = (
   entries: readonly SubtitleEntry[],
@@ -57,7 +97,7 @@ export const buildSrt = (
     return [
       String(index + 1),
       `${formatTimestamp(entry.start)} --> ${formatTimestamp(end)}`,
-      wrap(entry.text.trim(), opts.maxCharsPerLine),
+      decorateCue(entry, opts, (text) => wrap(text, opts.maxCharsPerLine)),
       '',
     ].join('\n')
   })

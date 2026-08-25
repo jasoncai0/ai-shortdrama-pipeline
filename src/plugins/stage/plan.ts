@@ -39,6 +39,7 @@ export default definePlugin<StagePort>({
       log.info(`plan: drafting from idea (${project.kind}, ${project.ratio})`)
 
       const result = await ports.llm.complete({
+        purpose: "plan",
         system: SYSTEM,
         schema: planSchema,
         messages: [

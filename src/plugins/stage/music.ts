@@ -178,6 +178,7 @@ const select = async (
 
   try {
     const result = await ctx.ports.llm.complete({
+        purpose: "music-select",
       system:
         '你是短剧的音乐监制。只根据给出的元数据（标题、标签、来源、时长）判断哪一条最贴合，' +
         '输出严格 JSON，无解释、无代码围栏。你听不到音频，所以不要假装评价音色。',

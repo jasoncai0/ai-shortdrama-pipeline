@@ -79,10 +79,22 @@ export type ShotStatus =
   | 'clipped'
   | 'failed'
 
+/**
+ * `beat` is a shot the script asked for. `insert` is one the pipeline added:
+ * a breath for narration to sit in, or a scene-change transition. Keeping the
+ * distinction lets a later pass judge pacing — twenty inserts in a ninety
+ * second episode is a problem no per-shot check would notice.
+ */
+export type ShotKind = 'beat' | 'insert'
+
+export type InsertRole = 'narration' | 'transition'
+
 export interface Shot {
   readonly id: string
   readonly episodeId: string
   readonly order: number
+  readonly kind?: ShotKind
+  readonly insertRole?: InsertRole
   readonly durationSeconds: number
   readonly plotDescription: string
   readonly shotSize?: string

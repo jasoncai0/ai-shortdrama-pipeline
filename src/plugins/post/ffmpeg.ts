@@ -164,7 +164,13 @@ export default definePlugin<PostPort>({
         for (const clip of clips) {
           const seconds = await probeSeconds(await store.localPath(clip.ref))
           if (clip.cue?.text?.trim()) {
-            measured.push({ start: offset, end: offset + seconds, text: clip.cue.text.trim() })
+            measured.push({
+              start: offset,
+              end: offset + seconds,
+              text: clip.cue.text.trim(),
+              kind: clip.cue.kind,
+              speaker: clip.cue.speaker,
+            })
           }
           offset += seconds
         }

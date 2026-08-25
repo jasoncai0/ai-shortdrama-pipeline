@@ -3,8 +3,9 @@ import { isAbsolute, resolve } from 'node:path'
 import { configError, stateError } from '../../kernel/errors.js'
 import { definePlugin } from '../../kernel/registry.js'
 import { charactersInLine, parseScript, withAliases } from '../../lib/script-parser.js'
+import { paceBeats } from '../../lib/pacing.js'
 import type { StagePort } from '../../kernel/ports.js'
-import type { Character, Episode, Prop, Scene, Shot } from '../../kernel/types.js'
+import type { Character, Episode, InsertRole, Prop, Scene, Shot } from '../../kernel/types.js'
 import type { ParsedEpisode, ParsedLine, ParsedScript } from '../../lib/script-parser.js'
 
 /**
@@ -48,13 +49,21 @@ import type { ParsedEpisode, ParsedLine, ParsedScript } from '../../lib/script-p
  *                        false — narration is exposition ("a soul from 1600
  *                        years later"), not a picture, and it carries no
  *                        character to anchor on.
- *   attachNarration      instead of discarding those lines, hang each one on
- *                        the NEXT visual shot as `shot.narration`, where `dub`
- *                        speaks it over the picture. Default true. In this genre
- *                        the (OS) voice carries much of the runtime, so
- *                        dropping it outright loses a third of each episode —
- *                        but giving it its own frame means inventing a picture
- *                        for a disembodied voice.
+ *   attachNarration      instead of discarding those lines, place each one via
+ *                        the pacing pass: on a silent beat when one is near, or
+ *                        on a breathing insert shot of its own. Default true.
+ *                        In this genre the (OS) voice carries much of the
+ *                        runtime, so dropping it loses a third of each episode.
+ *                        Narration is NEVER stacked on a shot that already has
+ *                        dialogue — that is what made the two talk over each
+ *                        other in the mix.
+ *   transitionInserts    add a short atmosphere shot when the location changes,
+ *                        so a cut between a temple and a lakeside does not read
+ *                        as a mistake. Default true.
+ *   maxInsertRatio       ration on transition inserts, as a fraction of the
+ *                        script's own beats. Default 0.4. Narration inserts are
+ *                        never rationed: the line is in the script.
+ *   narrationCharBudget  how much narration one shot may carry. Default 60.
  */
 export default definePlugin<StagePort>({
   port: 'stage',
@@ -137,6 +146,9 @@ export default definePlugin<StagePort>({
       const maxShots = numberOption(options['maxShotsPerEpisode'], 0)
       const includeNarration = options['includeNarration'] === true
       const attachNarration = options['attachNarration'] !== false
+      let narrationInsertCount = 0
+      let transitionInsertCount = 0
+      let suppressedTransitions = 0
 
       // Only characters that actually appear in the selected episodes get a
       // reference image — otherwise a 1-episode run pays for 16 portraits.
@@ -221,16 +233,60 @@ export default definePlugin<StagePort>({
           return entries
         })
 
-        const spread =
-          timing === 'dialogue' && attachNarration
-            ? spreadNarration(
-                visual.map((e) => ({
-                  ...e,
-                  dialogue: e.line.kind === 'dialogue' ? e.line.text : undefined,
-                })),
-                { maxSeconds: maxShotSeconds, charsPerSecond },
-              )
-            : visual
+        // Pacing decides where narration sits and where a scene change needs
+        // a breath. It can add insert shots, so it runs before the cap.
+        const paced = attachNarration
+          ? paceBeats(
+              visual.map((e) => ({
+                dialogue: e.line.kind === 'dialogue' ? e.line.text : undefined,
+                narration: e.narration,
+                sceneName: e.sceneName,
+                timeOfDay: e.timeOfDay,
+              })),
+              {
+                narrationCharBudget: numberOption(options['narrationCharBudget'], 60),
+                transitionInserts: options['transitionInserts'] !== false,
+                maxInsertRatio: numberOption(options['maxInsertRatio'], 0.4),
+              },
+            )
+          : undefined
+
+        type Entry = {
+          line: ParsedLine
+          sceneName: string
+          timeOfDay: string
+          narration?: string
+          insert?: InsertRole
+        }
+
+        const spread: readonly Entry[] = paced
+          ? paced.shots.map((shot): Entry => {
+              // A beat keeps its original parsed line; an insert has none.
+              const source = shot.sourceIndex === undefined ? undefined : visual[shot.sourceIndex]
+              return shot.kind === 'insert'
+                ? {
+                    line: { kind: 'action' as const, text: shot.insertDescription ?? '' } as ParsedLine,
+                    sceneName: shot.sceneName,
+                    timeOfDay: shot.timeOfDay,
+                    narration: shot.narration,
+                    insert: shot.insertRole,
+                  }
+                : {
+                    ...(source ?? {
+                      line: { kind: 'action' as const, text: '' } as ParsedLine,
+                      sceneName: shot.sceneName,
+                      timeOfDay: shot.timeOfDay,
+                    }),
+                    narration: shot.narration,
+                  }
+            })
+          : visual
+
+        if (paced) {
+          narrationInsertCount += paced.narrationInserts
+          transitionInsertCount += paced.transitionInserts
+          suppressedTransitions += paced.suppressed
+        }
 
         const capped = maxShots > 0 ? spread.slice(0, maxShots) : spread
         if (capped.length === 0) {
@@ -259,16 +315,30 @@ export default definePlugin<StagePort>({
                   )
                 : shotSeconds,
             plotDescription: plotOf(entry.line),
-            shotSize: shotSizeOf(entry.line),
-            cameraMove: cameraMoveOf(entry.line),
+            // An insert is an empty frame by definition: a wide, near-static
+            // look. A transition eases down off the sky; a narration breath
+            // holds still so the voice carries it.
+            shotSize: entry.insert ? '全景' : shotSizeOf(entry.line),
+            cameraMove: entry.insert
+              ? entry.insert === 'transition'
+                ? 'tilt-down'
+                : 'static'
+              : cameraMoveOf(entry.line),
             characterAction: entry.line.action,
             emotion: undefined,
             lightingAndAtmosphere: lightingOf(entry.timeOfDay),
             dialogue: entry.line.kind === 'dialogue' ? entry.line.text : undefined,
             narration: entry.narration,
-            characterIds: names
-              .map((n) => characterIdByName.get(n))
-              .filter((id): id is string => Boolean(id)),
+            ...(entry.insert
+              ? { kind: 'insert' as const, insertRole: entry.insert }
+              : { kind: 'beat' as const }),
+            // No cast in an insert: putting a character there would invent a
+            // beat the script never wrote, and risk contradicting one.
+            characterIds: entry.insert
+              ? []
+              : names
+                  .map((n) => characterIdByName.get(n))
+                  .filter((id): id is string => Boolean(id)),
             sceneId: sceneIdByName.get(entry.sceneName),
             propIds: [],
             status: 'draft',
@@ -293,6 +363,10 @@ export default definePlugin<StagePort>({
         )
       }
 
+      deps.log.info(
+        `import-script: pacing — ${narrationInsertCount} 旁白留白镜, ${transitionInsertCount} 转场空镜` +
+          (suppressedTransitions > 0 ? `, ${suppressedTransitions} 处场景切换未加转场(受 maxInsertRatio 限制)` : ''),
+      )
       deps.log.info(
         `import-script: 《${script.title}》 — ${episodes.length} episodes, ${characters.length} characters, ${scenes.length} scenes, ${shots.length} shots`,
       )

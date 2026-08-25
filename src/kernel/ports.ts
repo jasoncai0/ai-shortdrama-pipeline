@@ -45,6 +45,13 @@ export interface LLMResult<T> {
 }
 
 export interface CompleteRequest<T> {
+  /**
+   * What this call is for — `plan`, `assets`, `shots`, … Decorating adapters
+   * key on it, notably `llm/skill-inline`, which uses it to decide which pages
+   * of a production skill belong in this particular call. Sniffing the prompt
+   * text instead would break the moment a stage reworded itself.
+   */
+  readonly purpose?: string
   readonly system?: string
   readonly messages: readonly Message[]
   /** When present the adapter MUST return data satisfying it (retrying itself). */
@@ -276,6 +283,16 @@ export interface MixOptions {
 export interface SubtitleCue {
   readonly shotId: string
   readonly text: string
+  /**
+   * Whose voice this is. Narration and dialogue look the same on screen unless
+   * something separates them, and a viewer who cannot tell a character's line
+   * from the narrator's loses track of who knows what — which in this genre is
+   * the plot. Renderers italicise narration, the standard voice-over
+   * convention.
+   */
+  readonly kind?: 'dialogue' | 'narration'
+  /** Speaking character, when known. */
+  readonly speaker?: string
 }
 
 export interface SubtitleStyle {

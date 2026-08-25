@@ -74,6 +74,7 @@ export default definePlugin<StagePort>({
       const episodeCount = numberOption(ctx.options['episodes'], 1)
 
       const result = await ports.llm.complete({
+        purpose: "assets",
         system: SYSTEM,
         schema: assetsSchema,
         messages: [

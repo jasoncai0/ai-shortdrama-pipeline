@@ -1,0 +1,54 @@
+{
+  "budgetChars": 20000,
+  "purposes": {
+    "plan": [
+      {
+        "skill": "real-short-drama",
+        "sections": [
+          "写作内核",
+          "反无聊",
+          "cliffhanger",
+          "节奏引擎"
+        ]
+      }
+    ],
+    "assets": [
+      {
+        "skill": "real-short-drama",
+        "sections": [
+          "character-base-角色基准图",
+          "角色资产通用规则",
+          "location-地点资产",
+          "prop-道具资产"
+        ]
+      },
+      {
+        "skill": "character-sheet-design",
+        "includeBody": true
+      }
+    ],
+    "shots": [
+      {
+        "skill": "real-short-drama",
+        "sections": [
+          "镜头模板",
+          "micro-shot-language-voice",
+          "micro_shot_unit-count-soft",
+          "dialogue-sentence-block"
+        ]
+      }
+    ],
+    "cover": [
+      {
+        "skill": "short-drama-cover-design",
+        "includeBody": true
+      }
+    ],
+    "title": [
+      {
+        "skill": "smart-title-sequence",
+        "includeBody": true
+      }
+    ]
+  }
+}

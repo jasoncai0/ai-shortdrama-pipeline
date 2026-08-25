@@ -74,21 +74,32 @@ export default definePlugin<StagePort>({
         })
 
       const clips = ordered.map((shot) => {
-        const text = shot.dialogue?.trim()
-        const cue: SubtitleCue | undefined = text ? { shotId: shot.id, text } : undefined
+        // Narration was previously uncaptioned — a third of the spoken words
+        // had no subtitle at all. It gets a cue, tagged so the renderer can
+        // set it apart from a character's line.
+        const dialogue = shot.dialogue?.trim()
+        const narration = shot.narration?.trim()
+        const cue: SubtitleCue | undefined = dialogue
+          ? { shotId: shot.id, text: dialogue, kind: 'dialogue', speaker: speakerOf(shot, project) }
+          : narration
+            ? { shotId: shot.id, text: narration, kind: 'narration' }
+            : undefined
         // The same clip export concatenated — a dubbed shot's voiced mix can
         // be longer than its silent original.
         return { ref: renderedClip(shot) as AssetRef, cue }
       })
 
       const withText = clips.filter((c) => c.cue).length
+      const narrationCues = clips.filter((c) => c.cue?.kind === 'narration').length
       if (withText === 0) {
         log.warn(
-          `subtitles: none of the ${clips.length} shots carry dialogue — nothing to caption`,
+          `subtitles: none of the ${clips.length} shots carry dialogue or narration — nothing to caption`,
         )
         return { kind: 'ok', project }
       }
-      log.info(`subtitles: ${withText}/${clips.length} shots have dialogue`)
+      log.info(
+        `subtitles: ${withText}/${clips.length} shots captioned (${withText - narrationCues} 台词, ${narrationCues} 旁白)`,
+      )
 
       const srt = await ports.post.buildSubtitles(clips, ports.assetStore, project.id)
       const srtPath = await ports.assetStore.localPath(srt).catch(() => srt.uri)
@@ -140,3 +151,12 @@ const numberOption = (value: unknown, fallback: number): number =>
 
 const stringOption = (value: unknown, fallback: string): string =>
   typeof value === 'string' && value.length > 0 ? value : fallback
+
+/** First named character in the shot, for a speaker label. */
+const speakerOf = (
+  shot: { readonly characterIds: readonly string[] },
+  project: { readonly characters: readonly { id: string; name: string }[] },
+): string | undefined =>
+  shot.characterIds
+    .map((id) => project.characters.find((c) => c.id === id)?.name)
+    .find((name): name is string => Boolean(name))

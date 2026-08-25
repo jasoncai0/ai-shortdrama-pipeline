@@ -73,6 +73,7 @@ export default definePlugin<StagePort>({
         }
 
         const result = await ports.llm.complete({
+        purpose: "shots",
           system: SYSTEM,
           schema: shotsSchema,
           messages: [

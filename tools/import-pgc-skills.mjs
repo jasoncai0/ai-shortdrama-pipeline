@@ -363,10 +363,15 @@ const copyDesensitised = async (from, to) => {
 }
 
 const convertOne = async (sourceDir, key, outDir, options) => {
-  const filesDir = join(sourceDir, 'files')
+  // Two export layouts in the wild: bundled (`<skill>/files/SKILL.md`, with
+  // asset.json/bundle.json alongside) and flat (`<skill>/SKILL.md`, already
+  // stripped of the plaza files). The frontmatter still needs the same
+  // treatment either way — "clean" only means the storefront JSON is gone.
+  const bundled = join(sourceDir, 'files')
+  const filesDir = (await exists(join(bundled, 'SKILL.md'))) ? bundled : sourceDir
   const skillPath = join(filesDir, 'SKILL.md')
   if (!(await exists(skillPath))) {
-    return { key, skipped: 'no files/SKILL.md' }
+    return { key, skipped: 'no SKILL.md' }
   }
 
   const raw = await readFile(skillPath, 'utf8')
@@ -508,9 +513,11 @@ const main = async () => {
     // Prove the duplicate claim instead of assuming it.
     if (dirs.length > 1) {
       const bodies = await Promise.all(
-        dirs.map(async (d) =>
-          splitFrontmatter(await readFile(join(d, 'files', 'SKILL.md'), 'utf8')).body,
-        ),
+        dirs.map(async (d) => {
+          const bundled = join(d, 'files', 'SKILL.md')
+          const path = (await exists(bundled)) ? bundled : join(d, 'SKILL.md')
+          return splitFrontmatter(await readFile(path, 'utf8')).body
+        }),
       )
       result.duplicatesIdentical = bodies.every((b) => b === bodies[0])
     }

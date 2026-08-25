@@ -33,7 +33,7 @@ CLI ──► Kernel (pipeline runner · registry · domain model)
 
 | Port | Built-in impls | Default |
 |---|---|---|
-| `llm` | `deepseek`, `openai-compat`, `stub` | deepseek |
+| `llm` | `deepseek`, `openai-compat`, `skill-inline`, `stub` | deepseek |
 | `image` | `libtv`, `stub` | libtv |
 | `video` | `libtv`, `stub` | libtv |
 | `assetStore` | `localfs` | localfs |
@@ -187,6 +187,43 @@ A dubbed shot then carries two clips: the silent original and the voiced mix,
 which `padToVoice` can make longer. Everything downstream resolves the picture
 through `renderedClip(shot)` — export and subtitles disagreeing about which one
 is the picture is exactly how captions drift off the cut.
+
+### Production skills, loaded on demand
+
+`skills/` holds imported short-drama production skills, and `llm/skill-inline`
+decorates any LLM adapter to hand each call the pages its `purpose` needs:
+
+```jsonc
+"llm": { "impl": "skill-inline", "options": {
+  "inner": { "impl": "deepseek" },
+  "map": "./skills/inline-map.json"
+}}
+```
+
+**On demand.** Nothing is read until a call with a mapped purpose arrives, and
+each skill is read once per process. A run with no `plan` stage never opens
+`real-short-drama`; an unmapped purpose (`music-select`) is passed straight
+through with zero injected characters.
+
+**Selected, not pasted.** `real-short-drama` is 98 sections and ~19k lines —
+inlining it whole is impossible and would be wrong anyway, since most of it is
+advice for a stage that is not running. The map names a few sections per
+purpose:
+
+| purpose | sections |
+|---|---|
+| `plan` | 写作内核, 反无聊机制, cliffhanger 类型库, 节奏引擎 |
+| `assets` | 角色基准图, 角色资产通用规则, 地点资产, 道具资产 + character-sheet-design |
+| `shots` | 镜头模板, 镜头语言, MSU 数量软区间, 对白句块锁 |
+
+Measured on a stub run: plan 2.4k chars, assets 5.6k, shots 17.3k, everything
+else 0.
+
+A character budget trims what still does not fit — **smallest-first**, so one
+long section cannot displace several short dense rules — and names what it
+dropped. The stage's own instruction stays last in the system prompt: the skill
+knows the craft, the stage knows the output contract, and the contract has to
+be the final word or the model starts narrating instead of returning JSON.
 
 ### Score: your library, then open search, then generation
 
