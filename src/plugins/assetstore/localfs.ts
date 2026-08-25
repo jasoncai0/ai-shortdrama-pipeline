@@ -22,6 +22,15 @@ const EXT_BY_MIME: Record<string, string> = {
   'video/mp4': 'mp4',
   'video/quicktime': 'mov',
   'audio/mpeg': 'mp3',
+  'audio/mp4': 'm4a',
+  'audio/wav': 'wav',
+  'audio/aac': 'aac',
+  'audio/ogg': 'ogg',
+  'audio/flac': 'flac',
+  // ffmpeg's `subtitles` filter picks its demuxer from the file extension, so
+  // storing an SRT as `.bin` makes the burn-in fail with a filter parse error.
+  'application/x-subrip': 'srt',
+  'text/vtt': 'vtt',
 }
 
 const guessMime = (url: string, fallback = 'application/octet-stream'): string => {

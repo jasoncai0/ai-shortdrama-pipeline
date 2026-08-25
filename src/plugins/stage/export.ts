@@ -25,9 +25,15 @@ export default definePlugin<StagePort>({
         return byEpisode !== 0 ? byEpisode : a.order - b.order
       })
 
+      // A voiced clip supersedes the silent one; the clean version stays in
+      // the store under its own key, so this is a preference, not a loss.
       const clips = ordered
-        .map((shot) => shot.clip)
+        .map((shot) => shot.voicedClip ?? shot.clip)
         .filter((clip): clip is AssetRef => Boolean(clip))
+      const voiced = ordered.filter((shot) => shot.voicedClip).length
+      if (voiced > 0) {
+        log.info(`export: ${voiced}/${ordered.length} shots use their dubbed audio`)
+      }
 
       const missing = ordered.length - clips.length
       if (missing > 0) {

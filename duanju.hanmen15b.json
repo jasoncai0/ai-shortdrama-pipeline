@@ -1,0 +1,250 @@
+{
+  "ports": {
+    "llm": {
+      "impl": "stub",
+      "options": {
+        "seed": "unused-import-script-needs-no-llm"
+      }
+    },
+    "image": {
+      "impl": "libtv",
+      "options": {
+        "model": "General image Pro",
+        "canvas": "${LIBTV_PROJECT_UUID}"
+      }
+    },
+    "video": {
+      "impl": "libtv",
+      "options": {
+        "model": "Seedance 2.0 Mini",
+        "canvas": "${LIBTV_PROJECT_UUID}",
+        "resolution": "720p",
+        "minSeconds": 4,
+        "maxSeconds": 15
+      }
+    },
+    "assetStore": {
+      "impl": "localfs",
+      "options": {
+        "root": "./.hanmen15/assetStore"
+      }
+    },
+    "state": {
+      "impl": "localjson",
+      "options": {
+        "root": "./.hanmen15/state"
+      }
+    },
+    "ledger": {
+      "impl": "noop",
+      "options": {}
+    },
+    "export": {
+      "impl": "ffmpeg",
+      "options": {
+        "fps": 24,
+        "crf": 20
+      }
+    },
+    "promptStrategy": {
+      "impl": "skill-anchored",
+      "options": {
+        "dir": "./prompts",
+        "profileDir": "./prompts/profiles",
+        "profile": "photoreal-drama"
+      }
+    }
+  },
+  "middleware": [
+    {
+      "impl": "retry",
+      "options": {
+        "attempts": 2,
+        "baseDelayMs": 5000
+      }
+    },
+    {
+      "impl": "camera-grammar",
+      "options": {
+        "appendClauses": [
+          "oneDominantMove"
+        ]
+      }
+    },
+    {
+      "impl": "prompt-tune",
+      "options": {
+        "image": {
+          "suffix": "东晋古装, 无现代物件"
+        },
+        "video": {
+          "suffix": "运镜平稳, 24fps"
+        }
+      }
+    },
+    {
+      "impl": "tuning-log",
+      "options": {
+        "file": "./.hanmen15/tuning.ndjson"
+      }
+    }
+  ],
+  "pipeline": [
+    {
+      "id": "import-script",
+      "options": {
+        "file": "./scripts/screenplay.md",
+        "episodes": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "maxShotsPerEpisode": 0,
+        "styleGuide": "中国古装历史剧, 东晋魏晋风骨, 电影级构图, 柔和自然光, 浅景深, 胶片质感, 写实",
+        "characterAliases": {
+          "陈瑜之": [
+            "丑儿",
+            "丑叔",
+            "小郎",
+            "小郎君",
+            "少年",
+            "瑜之"
+          ],
+          "陈母李氏": [
+            "陈母",
+            "祖母",
+            "娘"
+          ],
+          "丁幼薇": [
+            "嫂子",
+            "嫂嫂",
+            "娘子",
+            "幼微"
+          ],
+          "陈润儿": [
+            "润儿"
+          ],
+          "陈宗之": [
+            "宗之"
+          ],
+          "褚文渊": [
+            "文谦",
+            "褚君"
+          ],
+          "全彦": [
+            "子敬",
+            "全常侍"
+          ],
+          "桓逸": [
+            "野云",
+            "桓参军"
+          ],
+          "陈满": [
+            "六伯父",
+            "六老爷"
+          ],
+          "来德": [
+            "来德"
+          ]
+        },
+        "characterVisuals": {
+          "陈瑜之": "十五岁东晋少年, 清瘦身形, 眉目如画极为俊美, 束发, 素色交领麻布长衫, 神情沉静深邃",
+          "陈母李氏": "五十五岁东晋妇人, 满头白发, 面容慈和有细纹, 深青色布裙, 手持念珠",
+          "陈润儿": "六岁女童, 圆脸, 双垂髻, 淡粉色小襦裙, 神情娇憨",
+          "陈宗之": "八岁男童, 圆润稚气的柔和脸庞, 大眼睛, 软发束成小髻, 淡青色童子长衫, 神情认真而天真, 幼童体态",
+          "丁幼薇": "二十六岁东晋贵族女子, 白色素纱襦裙, 云鬓低垂, 清冷绝美, 眼神哀婉",
+          "褚文渊": "四十四岁东晋士族男子, 面白如敷粉, 保养得体貌若三十, 深紫色宽袖锦袍, 神情矜傲",
+          "全彦": "六十岁东晋名士, 白须, 宽袍大袖, 手持白色麈尾, 气度雍容",
+          "桓逸": "三十余岁东晋名士, 青色宽袍, 长发半束, 立于乌篷船头, 气质超逸如仙",
+          "陈满": "五十余岁东晋乡绅, 蓝色布衫, 面容刻薄, 三角眼, 神情倨傲",
+          "来德": "十六岁健壮少年仆从, 粗布短褐, 麦色皮肤, 眼神憨直",
+          "陈咸": "六十岁东晋族长, 灰白须发, 深褐色长衫, 面容圆融世故, 神情谨慎骑墙",
+          "来福": "四十五岁忠仆, 粗麻短褐, 面色黝黑有风霜, 佝身低头, 眼神惶恐忠厚",
+          "陆薇蕤": "十七岁吴郡豪门女郎, 素白纱衣襦裙, 双螺髻, 面容清丽灵动, 手捧一束石斛花",
+          "真如长老": "七十岁东晋老僧, 光头, 灰褐色僧袍, 面容枯瘦慈悲, 手持念珠",
+          "陆鸿": "二十五岁吴郡士族青年, 华贵锦缎宽袖袍, 束玉冠, 面容倨傲轻慢"
+        },
+        "sceneVisuals": {
+          "云隐寺大殿": "东晋古寺大雄宝殿内部, 巨大金身佛像, 密布莲花油灯, 青烟缭绕, 昏暗殿堂, 香客跪拜",
+          "枫林渡口": "江南江畔渡口, 枫林, 曲柳, 石阶延入江水, 远处乌篷船, 江面开阔",
+          "丁府正厅": "东晋士族大宅正厅, 木构梁柱, 两张矮书案铺着帛纸笔墨, 竹帘垂落, 宾客列坐",
+          "竹帘后": "厅堂内侧竹帘之后, 光影斑驳, 半透视线, 幽静",
+          "冯府": "东晋县官宅院厅堂, 简朴木构, 屏风, 案几, 门帘",
+          "城南小石溪": "江南城郊溪畔, 溪水乱石, 两名士人对坐石上下围棋, 竹林掩映",
+          "宝珠山": "江南山岭, 苍松古木, 半山掩着一座小道院, 山道蜿蜒",
+          "道院前": "山中道院门前, 木栅院墙, 石阶, 垂帘, 松荫覆盖",
+          "明镜湖畔山道": "江南大湖畔山间小道, 湖面开阔波光, 远山如屏, 岸边繁花石斛丛生, 午后斜阳",
+          "陈家坞坞堡前": "东晋圆形夯土坞堡外景, 三层环楼, 土石高墙, 木制大门, 门前空地, 黄昏暖光",
+          "祖堂": "东晋宗族祠堂内部, 木构梁柱, 列祖牌位神龛, 长明烛火, 席地矮案, 夜间昏暗",
+          "西楼餐厅": "东晋寒门宅院内厅, 雁鱼铜灯, 矮食案四菜一汤, 竹席, 木格窗, 夜间灯下",
+          "餐厅": "东晋寒门宅院内厅, 饭后空食案, 雁鱼铜灯, 竹席, 门帘, 夜间昏黄",
+          "九曜山顶": "江南山巅, 苍松怪石, 云海翻涌, 远处大湖隐现, 拂晓朝霞满天红日喷薄"
+        },
+        "props": [
+          {
+            "name": "长命灯",
+            "description": "佛前一盏莲花形铜油灯, 灯焰跳动"
+          },
+          {
+            "name": "雁鱼灯",
+            "description": "东晋青铜雁鱼形油灯"
+          },
+          {
+            "name": "木叶蚱蜢",
+            "description": "用草叶编的小蚱蜢玩物"
+          },
+          {
+            "name": "石斛花",
+            "description": "一束淡黄色金钗石斛花"
+          }
+        ],
+        "shotSeconds": 5,
+        "extraCharacters": {
+          "真如长老": "云隐寺住持老僧",
+          "陆鸿": "吴郡陆氏子弟, 陆薇蕤六兄"
+        }
+      }
+    },
+    {
+      "id": "camera-check",
+      "needs": [
+        "import-script"
+      ],
+      "options": {}
+    },
+    {
+      "id": "refs",
+      "needs": [
+        "import-script"
+      ],
+      "options": {}
+    },
+    {
+      "id": "prompts",
+      "needs": [
+        "import-script"
+      ],
+      "options": {}
+    },
+    "images",
+    "videos",
+    "export"
+  ],
+  "concurrency": {
+    "images": 3,
+    "videos": 2,
+    "refs": 3
+  },
+  "budget": {
+    "maxCredits": 0,
+    "failFast": false
+  },
+  "defaults": {
+    "ratio": "9:16",
+    "kind": "shortdrama",
+    "shotSeconds": 5,
+    "shotsPerEpisode": 5
+  }
+}

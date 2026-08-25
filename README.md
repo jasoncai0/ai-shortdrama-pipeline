@@ -40,9 +40,11 @@ CLI ──► Kernel (pipeline runner · registry · domain model)
 | `state` | `localjson` | localjson |
 | `ledger` | `noop`, `localledger` | **noop** |
 | `export` | `ffmpeg` | ffmpeg |
+| `music` | `local`, `openverse`, `libtv`, `multi`, `stub` | multi |
+| `post` | `ffmpeg`, `none` | ffmpeg |
 | `promptStrategy` | `template`, `skill-anchored` | skill-anchored |
 | `middleware` | `retry`, `prompt-tune`, `camera-grammar`, `tuning-log` | all four |
-| `stage` | `import`, `import-script`, `plan`, `assets`, `refs`, `sheets`, `shots`, `camera-check`, `prompts`, `images`, `videos`, `cover`, `gate`, `export` | — |
+| `stage` | `import`, `import-script`, `plan`, `assets`, `refs`, `sheets`, `shots`, `camera-check`, `prompts`, `images`, `videos`, `cover`, `music`, `subtitles`, `gate`, `export` | — |
 
 External plugins: `"impl": "npm:my-plugin"` or `"impl": "file:./my-plugin.js"`.
 Any module default-exporting a `definePlugin({...})` works.
@@ -165,6 +167,72 @@ dolly-in → travels forward at a constant slow walking pace, subject distance
   unknown moves, two moves in one shot, runs of identical setups (per episode,
   so a scene change is not mistaken for a flat sequence), and shots with no
   camera plan. `failOn: "problems"` stops the run before anything is paid for.
+
+### Score: your library, then open search, then generation
+
+`music/multi` walks a cost ladder and short-circuits — tracks you already own
+cost nothing and are already cleared, an openly-licensed search costs nothing
+but needs checking, and generation costs money and minutes:
+
+```jsonc
+"music": { "impl": "multi", "options": {
+  "enough": 3,
+  "sources": [
+    { "impl": "local",     "options": { "dir": "./music" } },
+    { "impl": "openverse", "options": {} },
+    { "impl": "libtv",     "options": { "canvas": "${LIBTV_PROJECT_UUID}" } }
+  ]
+}}
+```
+
+Once three candidates exist the generating source is never consulted. Set
+`alwaysGenerate: true` to keep a bespoke cue in the running anyway.
+
+Selection is an LLM judgement over metadata — title, tags, source, runtime —
+with a deterministic fallback that says plainly it is *not* a judgement of fit.
+
+**Licence filtering is correctness, not paperwork.** Laying a track under a
+video is a derivative work, and publishing that video is commercial use, so a
+`by-nc-nd` hit is unusable however well it fits. Real Openverse results contain
+plenty of them. The default policy allows `cc0`, `pdm`, `by`, user-supplied and
+generated tracks; **unknown terms are refused rather than assumed permissive**;
+and licences needing a credit line are logged so the attribution ships with the
+deliverable. Rejections are logged with reasons, so "found nothing usable" never
+looks like "the search broke".
+
+`music/local` reads an optional `<track>.json` sidecar for title, tags, runtime
+and licence; without one it ranks by filename tag overlap, which is why
+`tense-strings-loop.mp3` beats `track_03.mp3`.
+
+### Subtitles go on last, and only to a cut somebody approved
+
+Burning text into a picture is the one irreversible step here: the frames are
+re-encoded, and doing it to an unapproved cut means paying to re-encode footage
+that is about to be regenerated — while producing a file that looks finished.
+
+So `subtitles` **refuses to run until a named gate has been cleared**, and says
+which gate and how to add it. Not documentation — the stage throws.
+
+```jsonc
+"pipeline": [
+  "…", "export", "music",
+  { "id": "gate-cut", "use": "gate", "options": { "prompt": "这一版画面确认了吗？" } },
+  "subtitles"
+]
+```
+
+`confirmGate: false` opts out explicitly, for when approval happens elsewhere.
+
+Timing is **measured from the clips**, not taken from the requested durations: a
+model asked for 4s returns 4.096s, and by shot eight those fractions have walked
+the captions off the picture. Text comes from each shot's `dialogue`; shots
+without any produce no cue rather than an empty box. Wrapping counts CJK as one
+character per column, so a line of Chinese dialogue does not run off both edges.
+
+Hardsub needs an ffmpeg built with libass. Where that is missing the port
+**detects it and falls back to a soft `mov_text` track**, warning that the text
+is now toggleable and most feeds will not show it — rather than dying on
+`No such filter: 'subtitles'` after the picture has been paid for.
 
 ### Local state is the source of truth
 

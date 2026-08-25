@@ -27,6 +27,8 @@ const config = configSchema.parse({
     state: { impl: 'localjson', options: { root: './state' } },
     ledger: { impl: 'localledger', options: { root: './ledger' } },
     export: { impl: 'ffmpeg' },
+    music: { impl: 'stub' },
+    post: { impl: 'ffmpeg' },
     promptStrategy: { impl: 'template', options: { dir: './prompts' } },
   },
   middleware: [{ impl: 'tuning-log', options: { file: './tuning.ndjson' } }],
@@ -169,6 +171,63 @@ describe('end-to-end on stubs', () => {
     expect(result.project.finalCut).toBeDefined()
     expect(result.project.shots.every((s) => s.clip)).toBe(true)
   }, 120_000)
+
+  test('scores the cut, then subtitles it only after the gate clears', async () => {
+    const scored = configSchema.parse({
+      ...config,
+      pipeline: [
+        'plan', 'assets', 'refs', 'shots', 'prompts', 'images', 'videos', 'export',
+        { id: 'music', options: { musicGainDb: -12 } },
+        { id: 'gate-cut', use: 'gate', options: { prompt: 'ok?' } },
+        'subtitles',
+      ],
+    })
+
+    const app = await buildApp(scored, log, workDir)
+    const stages = app.stages.map((s) => ({
+      ...s,
+      options: { episodes: 1, shotsPerEpisode: 2, shotSeconds: 2, ...s.options },
+    }))
+    const common = {
+      plugins: app.stagePlugins,
+      ports: app.ports,
+      log,
+      concurrency: scored.concurrency,
+      onProject: (p: Project) => app.setProject(p),
+    }
+
+    // Without approval the run must stop at the gate with no subtitles written.
+    const paused = await runPipeline({ ...newProject(), id: 'ptest-av' }, {
+      ...common,
+      stages,
+      autoApprove: false,
+    })
+    expect(paused.kind).toBe('awaiting-input')
+    if (paused.kind !== 'awaiting-input') return
+    expect(paused.project.music).toBeDefined()
+    expect(paused.project.scoredCut).toBeDefined()
+    expect(paused.project.subtitleFile).toBeUndefined()
+    expect(paused.project.deliverable).toBeUndefined()
+
+    // Approving the cut is what authorises the irreversible step.
+    const approved: Project = {
+      ...paused.project,
+      stageState: Object.fromEntries(
+        Object.entries(paused.project.stageState).map(([id, st]) =>
+          st.status === 'awaiting-input' ? [id, { ...st, status: 'done' as const }] : [id, st],
+        ),
+      ),
+    }
+    const done = await runPipeline(approved, { ...common, stages, autoApprove: true })
+
+    expect(done.kind).toBe('complete')
+    if (done.kind !== 'complete') return
+    expect(done.project.subtitleFile).toBeDefined()
+    expect(done.project.deliverable).toBeDefined()
+
+    const srt = await readFile(fileURLToPath(done.project.subtitleFile?.uri ?? ''), 'utf8')
+    expect(srt).toMatch(/-->/)
+  }, 240_000)
 
   test('prompt template files on disk override the built-in defaults', async () => {
     const promptsDir = join(workDir, 'prompts')

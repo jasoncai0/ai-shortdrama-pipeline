@@ -187,6 +187,12 @@ const statusCommand = async (args: Args, log: Logger): Promise<number> => {
           failed: project.shots.filter((s) => s.status === 'failed').length,
         },
         finalCut: project.finalCut?.uri,
+        music: project.music
+          ? { title: project.music.title, source: project.music.source, licence: project.music.licence.code }
+          : undefined,
+        scoredCut: project.scoredCut?.uri,
+        subtitleFile: project.subtitleFile?.uri,
+        deliverable: project.deliverable?.uri,
       },
       null,
       2,
@@ -200,7 +206,7 @@ const pluginsCommand = async (args: Args, log: Logger): Promise<number> => {
   const app = await buildApp(config, log, process.cwd())
   const ports = [
     'llm', 'image', 'video', 'assetStore', 'state',
-    'ledger', 'export', 'promptStrategy', 'middleware', 'stage',
+    'ledger', 'export', 'music', 'post', 'promptStrategy', 'middleware', 'stage',
   ] as const
   out(
     JSON.stringify(

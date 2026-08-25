@@ -25,6 +25,18 @@ export const builtins: BuiltinTable = {
 
   'export/ffmpeg': () => import('./export/ffmpeg.js'),
 
+  'speech/libtv': () => import('./speech/libtv.js'),
+  'speech/stub': () => import('./speech/stub.js'),
+
+  'music/local': () => import('./music/local.js'),
+  'music/openverse': () => import('./music/openverse.js'),
+  'music/libtv': () => import('./music/libtv.js'),
+  'music/multi': () => import('./music/multi.js'),
+  'music/stub': () => import('./music/stub.js'),
+
+  'post/ffmpeg': () => import('./post/ffmpeg.js'),
+  'post/none': () => import('./post/none.js'),
+
   'promptStrategy/template': () => import('./promptStrategy/template.js'),
   'promptStrategy/skill-anchored': () => import('./promptStrategy/skill-anchored.js'),
 
@@ -45,6 +57,9 @@ export const builtins: BuiltinTable = {
   'stage/prompts': () => import('./stage/prompts.js'),
   'stage/images': () => import('./stage/images.js'),
   'stage/videos': () => import('./stage/videos.js'),
+  'stage/dub': () => import('./stage/dub.js'),
   'stage/gate': () => import('./stage/gate.js'),
   'stage/export': () => import('./stage/export.js'),
+  'stage/music': () => import('./stage/music.js'),
+  'stage/subtitles': () => import('./stage/subtitles.js'),
 }

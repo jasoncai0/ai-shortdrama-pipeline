@@ -103,10 +103,48 @@ export interface Shot {
   /** Per-shot generation param overrides produced by the prompt strategy. */
   readonly imageParams?: Readonly<Record<string, unknown>>
   readonly videoParams?: Readonly<Record<string, unknown>>
+  /**
+   * Narration spoken over this shot's picture rather than given a shot of its
+   * own. In this genre the (OS) voice carries much of the runtime, and it has
+   * no visual subject to anchor a frame on.
+   */
+  readonly narration?: string
   readonly still?: AssetRef
   readonly clip?: AssetRef
+  /** Synthesised speech for `dialogue` + `narration`. */
+  readonly voice?: AssetRef
+  /** `clip` with `voice` mixed in. `export` prefers this when present. */
+  readonly voicedClip?: AssetRef
   readonly status: ShotStatus
   readonly failure?: string
+}
+
+/**
+ * What a track is licensed for. Unknown is not the same as permitted: a track
+ * whose terms we cannot read is refused rather than assumed usable.
+ */
+export interface MusicLicence {
+  /** `cc0`, `by`, `by-nc-nd`, `user-provided`, `generated`, … */
+  readonly code: string
+  readonly url?: string
+  /** Credit line that must ship with the deliverable when the licence needs it. */
+  readonly attribution?: string
+  readonly commercialUse: boolean | 'unknown'
+  readonly derivativesAllowed: boolean | 'unknown'
+}
+
+export interface MusicTrack {
+  readonly id: string
+  readonly title: string
+  readonly source: 'local' | 'search' | 'generated'
+  readonly provider: string
+  readonly seconds?: number
+  readonly creator?: string
+  readonly tags: readonly string[]
+  readonly licence: MusicLicence
+  readonly asset: AssetRef
+  /** Why the selector picked this one — kept so the choice can be argued with. */
+  readonly rationale?: string
 }
 
 export interface StageState {
@@ -130,10 +168,20 @@ export interface Project {
   readonly scenes: readonly Scene[]
   readonly props: readonly Prop[]
   readonly shots: readonly Shot[]
+  /** Picture cut, no music, no subtitles. */
   readonly finalCut?: AssetRef
   /** Feed cover (3:4). Separate from finalCut: different ratio, different job. */
   readonly cover?: AssetRef
   readonly coverVariants?: readonly AssetRef[]
+  readonly music?: MusicTrack
+  /** Rejected candidates, kept so a re-pick needs no new search or generation. */
+  readonly musicCandidates?: readonly MusicTrack[]
+  /** finalCut with the score mixed under it. */
+  readonly scoredCut?: AssetRef
+  /** Sidecar .srt built from dialogue and measured clip durations. */
+  readonly subtitleFile?: AssetRef
+  /** The thing you actually publish: confirmed cut + music + subtitles. */
+  readonly deliverable?: AssetRef
   readonly stageState: Readonly<Record<string, StageState>>
   /** Free-form scratch space for adapters (e.g. libtv shotId → nodeKey map). */
   readonly adapterState: Readonly<Record<string, unknown>>

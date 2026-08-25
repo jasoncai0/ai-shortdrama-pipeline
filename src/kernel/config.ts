@@ -45,6 +45,9 @@ export const configSchema = z.object({
     state: portBinding,
     ledger: portBinding,
     export: portBinding,
+    speech: portBinding.default({ impl: 'stub', options: {} }),
+    music: portBinding.default({ impl: 'stub', options: {} }),
+    post: portBinding.default({ impl: 'ffmpeg', options: {} }),
     promptStrategy: portBinding,
   }),
   /** Ordered; outermost first. Applied to every image/video generate call. */

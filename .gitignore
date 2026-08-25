@@ -5,18 +5,23 @@ coverage/
 *.log
 
 # ── run outputs ───────────────────────────────────────────────────────────
-# State, generated media, ledgers and tuning logs. These carry provider CDN
-# URLs that embed the account uuid, plus whatever story you happened to run.
-# The pattern is deliberately broad: every project config picks its own root.
-.duanju*/
-.baishen*/
-.hanmen*/
-.libtv/
-
-# Agent/session scratch — transcripts, never publishable.
-.omc/
+# Every run output lives in a dot-directory at the repo root: state, generated
+# media, ledgers, tuning logs. They carry provider CDN URLs that embed the
+# account uuid, plus whatever story was run.
+#
+# Ignore the whole class rather than listing names. A name list has now been
+# outrun three times — .baishen-dry, then .ms, then .hanmen15/assetStore (a
+# config picked its own directory name). Each config chooses its own roots, so
+# only the shape is stable.
+/.*/
+!/.github/
 
 # Local overrides
 .env
 .env.*
 duanju.local.json
+
+# Screenplays are copyrighted third-party work — drop-in only, never committed.
+scripts/screenplay.md
+scripts/*.md
+!scripts/README.md

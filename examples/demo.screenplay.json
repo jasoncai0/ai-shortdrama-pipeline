@@ -3,8 +3,13 @@
   "genre": "noir thriller",
   "logline": "A courier takes a wrong turn and sees something they cannot unsee.",
   "mainPlot": "A late-night courier witnesses a crime in an alley and is spotted.",
-  "sellingPoints": ["cold open on the witness moment", "single-location tension"],
-  "conflicts": ["courier vs the person who saw them looking"],
+  "sellingPoints": [
+    "cold open on the witness moment",
+    "single-location tension"
+  ],
+  "conflicts": [
+    "courier vs the person who saw them looking"
+  ],
   "styleGuide": "cinematic neo-noir, teal and orange grade, 35mm film grain, shallow depth of field, rain",
   "characters": [
     {
@@ -23,7 +28,10 @@
     }
   ],
   "props": [
-    { "name": "Delivery Box", "description": "yellow insulated delivery box" }
+    {
+      "name": "Delivery Box",
+      "description": "yellow insulated delivery box"
+    }
   ],
   "episodes": [
     {
@@ -38,9 +46,14 @@
           "characterAction": "gripping the delivery box strap",
           "emotion": "dread",
           "lightingAndAtmosphere": "harsh neon rimlight, rain haze",
-          "characterNames": ["Courier"],
+          "characterNames": [
+            "Courier"
+          ],
           "sceneName": "Neon Alley",
-          "propNames": ["Delivery Box"]
+          "propNames": [
+            "Delivery Box"
+          ],
+          "dialogue": "I didn't see anything."
         },
         {
           "plotDescription": "extreme close-up of the courier's eyes widening",
@@ -50,9 +63,12 @@
           "characterAction": "eyes darting",
           "emotion": "terror",
           "lightingAndAtmosphere": "blue neon on wet skin",
-          "characterNames": ["Courier"],
+          "characterNames": [
+            "Courier"
+          ],
           "sceneName": "Neon Alley",
-          "propNames": []
+          "propNames": [],
+          "dialogue": "Please. I'm just the delivery guy."
         },
         {
           "plotDescription": "the stranger turns and looks straight down the alley",
@@ -62,9 +78,12 @@
           "characterAction": "turning slowly toward camera",
           "emotion": "cold calm",
           "lightingAndAtmosphere": "backlit by a single sodium lamp, rain streaks",
-          "characterNames": ["Stranger"],
+          "characterNames": [
+            "Stranger"
+          ],
           "sceneName": "Neon Alley",
-          "propNames": []
+          "propNames": [],
+          "dialogue": "You already did."
         }
       ]
     }

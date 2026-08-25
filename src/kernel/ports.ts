@@ -11,7 +11,7 @@
  */
 
 import type { ZodType } from 'zod'
-import type { AssetRef, Project, Shot } from './types.js'
+import type { AssetRef, MusicLicence, Project, Shot } from './types.js'
 
 // ─── shared ───────────────────────────────────────────────────────────────
 
@@ -190,6 +190,146 @@ export interface AssetStorePort extends Plugin {
   localPath(ref: AssetRef): Promise<string>
 }
 
+// ─── music ────────────────────────────────────────────────────────────────
+
+export interface MusicBrief {
+  readonly genre: string
+  readonly mood: string
+  readonly styleGuide: string
+  /** Runtime the cut actually needs covering. */
+  readonly seconds: number
+  readonly keywords: readonly string[]
+}
+
+export interface MusicCandidate {
+  readonly id: string
+  readonly title: string
+  readonly source: 'local' | 'search' | 'generated'
+  /** file:// or https:// — the kernel ingests it before anything downstream. */
+  readonly uri: string
+  readonly mime: string
+  readonly seconds?: number
+  readonly creator?: string
+  readonly tags: readonly string[]
+  readonly licence: MusicLicence
+}
+
+export interface MusicCaps {
+  /** Generating costs money and takes time; selection strategy depends on it. */
+  readonly canGenerate: boolean
+  readonly maxSeconds?: number
+}
+
+export interface MusicPort extends Plugin {
+  readonly caps: MusicCaps
+  /** Offers candidates. Choosing between them is the stage's job, not the port's. */
+  find(brief: MusicBrief, limit: number): Promise<readonly MusicCandidate[]>
+}
+
+// ─── speech ───────────────────────────────────────────────────────────────
+
+export interface SpeechCaps {
+  readonly maxChars: number
+  readonly maxConcurrency: number
+  /** Voice ids the adapter accepts; empty means "anything the provider takes". */
+  readonly voices: readonly string[]
+}
+
+export interface SpeechRequest {
+  readonly text: string
+  /** Provider voice id. Cast per character so one actor keeps one voice. */
+  readonly voice?: string
+  /** 1 = natural. Below 1 is slower. */
+  readonly speed?: number
+  readonly params?: Readonly<Record<string, unknown>>
+  readonly idempotencyKey: string
+  readonly label?: string
+}
+
+export interface SpeechPort extends Plugin {
+  readonly caps: SpeechCaps
+  synthesize(req: SpeechRequest): Promise<readonly AssetRef[]>
+}
+
+// ─── post production ──────────────────────────────────────────────────────
+
+export interface MixOptions {
+  /** Music level relative to the picture's own audio, in dB. Negative ducks it. */
+  readonly musicGainDb: number
+  readonly fadeInSeconds: number
+  readonly fadeOutSeconds: number
+  /** Loop a short track to cover the runtime instead of letting it fall silent. */
+  readonly loop: boolean
+  /** Pull the music down while dialogue plays. */
+  readonly duckUnderDialogue: boolean
+}
+
+export interface SubtitleCue {
+  readonly shotId: string
+  readonly text: string
+}
+
+export interface SubtitleStyle {
+  readonly fontSize: number
+  readonly marginVertical: number
+  readonly primaryColour: string
+  readonly outlineColour: string
+  readonly fontName?: string
+}
+
+export interface VoiceMixOptions {
+  /** Level applied to the synthesised voice, in dB. */
+  readonly voiceGainDb: number
+  /** Level applied to the clip's own audio while the voice plays, in dB. */
+  readonly bedGainDb: number
+  /**
+   * Stretch the picture to cover a voice that outlasts it. Off by default:
+   * silently slowing a shot to fit a line is a directorial decision, not a
+   * mixing one.
+   */
+  readonly padToVoice: boolean
+}
+
+export interface PostPort extends Plugin {
+  /**
+   * Lays a voice track over one clip. Optional so an adapter can ship music
+   * and subtitles without speech support.
+   */
+  mixVoice?(
+    clip: AssetRef,
+    voice: AssetRef,
+    opts: VoiceMixOptions,
+    store: AssetStorePort,
+    projectId: string,
+  ): Promise<AssetRef>
+  mixMusic(
+    video: AssetRef,
+    music: AssetRef,
+    opts: MixOptions,
+    store: AssetStorePort,
+    projectId: string,
+  ): Promise<AssetRef>
+  /**
+   * Builds an SRT from cues plus the clips they belong to.
+   *
+   * Timing is measured from the clips rather than taken from the requested
+   * durations: a model asked for 4s routinely returns 4.096s, and those
+   * fractions accumulate into subtitles that drift off the picture.
+   */
+  buildSubtitles(
+    clips: readonly { readonly ref: AssetRef; readonly cue?: SubtitleCue }[],
+    store: AssetStorePort,
+    projectId: string,
+  ): Promise<AssetRef>
+  burnSubtitles(
+    video: AssetRef,
+    srt: AssetRef,
+    style: SubtitleStyle,
+    store: AssetStorePort,
+    projectId: string,
+  ): Promise<AssetRef>
+}
+
 // ─── state / ledger / export ──────────────────────────────────────────────
 
 export interface StatePort extends Plugin {
@@ -238,6 +378,9 @@ export interface ExportPort extends Plugin {
 
 export interface Ports {
   readonly llm: LLMPort
+  readonly music: MusicPort
+  readonly speech: SpeechPort
+  readonly post: PostPort
   readonly image: ImagePort
   readonly video: VideoPort
   readonly assetStore: AssetStorePort

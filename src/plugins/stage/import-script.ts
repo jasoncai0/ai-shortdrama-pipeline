@@ -28,11 +28,22 @@ import type { ParsedEpisode, ParsedLine, ParsedScript } from '../../lib/script-p
  *   characterAliases     { "陈瑜之": ["丑儿", "丑叔", "小郎"] }
  *   props                [{ name, description }]
  *   maxShotsPerEpisode   hard cap, useful for a cheap first pass
- *   shotSeconds          per-shot length (default 5). Deliberately NOT
- *                        targetSeconds/shotCount: once maxShotsPerEpisode
- *                        truncates the beat list, dividing the episode budget
- *                        across the survivors yields absurd 20s+ shots that
- *                        every video model then clamps anyway.
+ *   shotSeconds          per-shot length when timing is fixed (default 5).
+ *   timing               "fixed" (default) | "dialogue".
+ *                        "dialogue" gives each shot the time its line needs to
+ *                        be spoken, so a one-word retort is short and a speech
+ *                        is long — a fixed 5s makes both wrong. Silent beats
+ *                        get `shotSeconds`. Clamped to [minShotSeconds,
+ *                        maxShotSeconds] because every video model clamps too,
+ *                        and an un-clamped estimate just moves the surprise
+ *                        downstream.
+ *                        NOT targetSeconds/shotCount: with maxShotsPerEpisode
+ *                        truncating the beat list, dividing an episode budget
+ *                        across the survivors yields absurd 20s+ shots.
+ *   charsPerSecond       speaking rate for "dialogue" timing, default 5
+ *                        (unhurried Mandarin delivery; raise for faster reads)
+ *   minShotSeconds       default 3
+ *   maxShotSeconds       default 12
  *   includeNarration     include (OS) lines as shots. Default false — narration
  *                        is exposition ("a soul from 1600 years later"), not a
  *                        picture, and it carries no character to anchor on.
@@ -111,6 +122,10 @@ export default definePlugin<StagePort>({
       const characterVisuals = asRecord(options['characterVisuals'])
       const sceneVisuals = asRecord(options['sceneVisuals'])
       const shotSeconds = numberOption(options['shotSeconds'], 5)
+      const timing = options['timing'] === 'dialogue' ? 'dialogue' : 'fixed'
+      const charsPerSecond = numberOption(options['charsPerSecond'], 5)
+      const minShotSeconds = numberOption(options['minShotSeconds'], 3)
+      const maxShotSeconds = numberOption(options['maxShotSeconds'], 12)
       const maxShots = numberOption(options['maxShotsPerEpisode'], 0)
       const includeNarration = options['includeNarration'] === true
 
@@ -182,7 +197,15 @@ export default definePlugin<StagePort>({
             id: `ep${parsedEpisode.index}-s${String(i + 1).padStart(2, '0')}`,
             episodeId: `ep${parsedEpisode.index}`,
             order: i + 1,
-            durationSeconds: shotSeconds,
+            durationSeconds:
+              timing === 'dialogue'
+                ? spokenSeconds(entry.line.kind === 'dialogue' ? entry.line.text : undefined, {
+                    charsPerSecond,
+                    fallback: shotSeconds,
+                    min: minShotSeconds,
+                    max: maxShotSeconds,
+                  })
+                : shotSeconds,
             plotDescription: plotOf(entry.line),
             shotSize: shotSizeOf(entry.line),
             cameraMove: cameraMoveOf(entry.line),
@@ -200,7 +223,7 @@ export default definePlugin<StagePort>({
         })
 
         deps.log.info(
-          `import-script: episode ${parsedEpisode.index} 《${parsedEpisode.title}》 → ${capped.length} shots @ ${shotSeconds}s (of ${visual.length} beats)`,
+          `import-script: episode ${parsedEpisode.index} 《${parsedEpisode.title}》 → ${capped.length} shots, ${timing} timing (of ${visual.length} beats)`,
         )
       }
 
@@ -332,3 +355,38 @@ const propList = (value: unknown): readonly Prop[] => {
     return name && description ? [{ id: `pr${index + 1}`, name, description }] : []
   })
 }
+
+/**
+ * How long a line takes to say, in whole seconds.
+ *
+ * Counts CJK characters and Latin words, since 5 hanzi and 5 English words are
+ * nothing like the same duration. Punctuation is dropped but each sentence
+ * break earns a beat of breathing room — read a long line without pauses and
+ * it always runs over.
+ */
+export const spokenSeconds = (
+  dialogue: string | undefined,
+  opts: {
+    readonly charsPerSecond: number
+    readonly fallback: number
+    readonly min: number
+    readonly max: number
+  },
+): number => {
+  const text = (dialogue ?? '').trim()
+  if (text.length === 0) return clampSeconds(opts.fallback, opts.min, opts.max)
+
+  const cjk = (text.match(/[\u3400-\u9fff\uf900-\ufaff]/g) ?? []).length
+  const latinWords = (text.match(/[A-Za-z][A-Za-z'-]*/g) ?? []).length
+  const digits = (text.match(/\d+/g) ?? []).length
+  // A Latin word is roughly two hanzi worth of airtime; a number reads as one.
+  const units = cjk + latinWords * 2 + digits
+
+  const pauses = (text.match(/[，,。.！!？?；;：:…—]/g) ?? []).length
+  const seconds = units / Math.max(1, opts.charsPerSecond) + pauses * 0.25
+
+  return clampSeconds(Math.ceil(seconds), opts.min, opts.max)
+}
+
+const clampSeconds = (n: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, Math.round(n)))

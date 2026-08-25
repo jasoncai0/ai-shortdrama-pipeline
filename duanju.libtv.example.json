@@ -50,6 +50,34 @@
         "profileDir": "./prompts/profiles",
         "profile": "photoreal-drama"
       }
+    },
+    "music": {
+      "impl": "multi",
+      "options": {
+        "enough": 3,
+        "sources": [
+          {
+            "impl": "local",
+            "options": {
+              "dir": "./music"
+            }
+          },
+          {
+            "impl": "openverse",
+            "options": {}
+          },
+          {
+            "impl": "libtv",
+            "options": {
+              "canvas": "${LIBTV_PROJECT_UUID}"
+            }
+          }
+        ]
+      }
+    },
+    "post": {
+      "impl": "ffmpeg",
+      "options": {}
     }
   },
   "middleware": [
@@ -106,7 +134,17 @@
     "prompts",
     "images",
     "videos",
-    "export"
+    "export",
+    "music",
+    {
+      "id": "gate-cut",
+      "use": "gate",
+      "options": {
+        "label": "cut",
+        "prompt": "这一版画面确认了吗？"
+      }
+    },
+    "subtitles"
   ],
   "concurrency": {
     "images": 2,

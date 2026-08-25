@@ -28,6 +28,20 @@ export const DEFAULT_CONFIG = {
     // ever disagree. Swap to 'localledger' for a spend ceiling + dedupe.
     ledger: { impl: 'noop', options: {} },
     export: { impl: 'ffmpeg', options: {} },
+    // Cost ladder: your own library first, then openly-licensed search, and
+    // generation only if neither turned anything up.
+    music: {
+      impl: 'multi',
+      options: {
+        enough: 3,
+        sources: [
+          { impl: 'local', options: { dir: './music' } },
+          { impl: 'openverse', options: {} },
+          { impl: 'libtv', options: { canvas: '${LIBTV_PROJECT_UUID}' } },
+        ],
+      },
+    },
+    post: { impl: 'ffmpeg', options: {} },
     promptStrategy: {
       impl: 'skill-anchored',
       options: { dir: './prompts', profileDir: './prompts/profiles', profile: 'photoreal-drama' },
@@ -51,6 +65,11 @@ export const DEFAULT_CONFIG = {
     'images',
     'videos',
     'export',
+    'music',
+    // Subtitles are burned in and irreversible, so the picture gets signed off
+    // first. The subtitles stage refuses to run until this gate is done.
+    { id: 'gate-cut', use: 'gate', options: { label: 'cut', prompt: '这一版画面确认了吗？' } },
+    'subtitles',
   ],
   concurrency: { images: 3, videos: 2, refs: 3 },
   budget: { maxCredits: 0, failFast: false },

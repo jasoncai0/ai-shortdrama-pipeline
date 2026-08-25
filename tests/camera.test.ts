@@ -240,3 +240,48 @@ describe('setupKey', () => {
     expect(setupKey('Medium Shot', 'Dolly_In')).toBe(setupKey('medium shot', 'dolly-in'))
   })
 })
+
+describe('spokenSeconds', () => {
+  const opts = { charsPerSecond: 5, fallback: 5, min: 3, max: 12 }
+
+  test('a silent beat falls back to the fixed length', async () => {
+    const { spokenSeconds } = await import('../src/plugins/stage/import-script.js')
+    expect(spokenSeconds(undefined, opts)).toBe(5)
+    expect(spokenSeconds('   ', opts)).toBe(5)
+  })
+
+  test('a short retort is shorter than a long speech', async () => {
+    const { spokenSeconds } = await import('../src/plugins/stage/import-script.js')
+    const short = spokenSeconds('你做梦!', opts)
+    const long = spokenSeconds(
+      '瑜之,你娘在为你想办法——明年你满十六,按《靖律》要编入丁籍,每年至少服役二十日。你身子骨弱,如何扛得住?',
+      opts,
+    )
+    expect(short).toBeLessThan(long)
+    expect(short).toBe(opts.min)
+    // A 50-hanzi line with 5 pauses lands near the ceiling without being clamped.
+    expect(long).toBeGreaterThanOrEqual(10)
+    expect(long).toBeLessThanOrEqual(opts.max)
+  })
+
+  test('a Latin word buys more airtime than one hanzi', async () => {
+    const { spokenSeconds } = await import('../src/plugins/stage/import-script.js')
+    // 10 words vs 10 hanzi: the words should need more time.
+    expect(spokenSeconds('one two three four five six seven eight nine ten', opts)).toBeGreaterThan(
+      spokenSeconds('一二三四五六七八九十', opts),
+    )
+  })
+
+  test('sentence breaks add breathing room', async () => {
+    const { spokenSeconds } = await import('../src/plugins/stage/import-script.js')
+    const flat = '甲乙丙丁戊己庚辛壬癸甲乙丙丁戊己庚辛壬癸'
+    const punctuated = '甲乙丙丁戊,己庚辛壬癸。甲乙丙丁戊,己庚辛壬癸。'
+    expect(spokenSeconds(punctuated, opts)).toBeGreaterThanOrEqual(spokenSeconds(flat, opts))
+  })
+
+  test('stays inside the clamp every video model would apply anyway', async () => {
+    const { spokenSeconds } = await import('../src/plugins/stage/import-script.js')
+    expect(spokenSeconds('啊', opts)).toBe(3)
+    expect(spokenSeconds('字'.repeat(400), opts)).toBe(12)
+  })
+})
