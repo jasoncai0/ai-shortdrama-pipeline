@@ -1,0 +1,196 @@
+{
+  "id": "default",
+  "label": "Camera grammar — physical phrasing for generative video",
+  "source": "pgc-skills-export/us-pre/longpoll-consistant references/seedance2-prompts.md (constant-motion wording, non-final ending) + references/continuity-spec.md (failure matrix); us-pre/generate-camera-blocking-board references/board-spec.md (one dominant movement per panel); us-pre/video-storyboard (panel variety)",
+  "why": "Generative video models read 'slow' and 'cinematic' as style, not velocity, and their implied speed changes between generations. Every move below is phrased as observable physics — what changes in frame, and at what rate — so two shots asking for the same move actually get the same move.",
+  "moves": {
+    "static": {
+      "aliases": [
+        "locked",
+        "locked off",
+        "fixed",
+        "still",
+        "固定",
+        "固定机位",
+        "静止",
+        "静态",
+        "不动"
+      ],
+      "phrase": "the camera is locked on a tripod and does not move; framing, height, and focal length stay fixed for the whole shot"
+    },
+    "dolly-in": {
+      "aliases": [
+        "push in",
+        "push-in",
+        "slow dolly-in",
+        "dolly in",
+        "推镜",
+        "推近",
+        "前推",
+        "缓慢推进",
+        "推进",
+        "慢推"
+      ],
+      "phrase": "the camera travels forward at a constant slow walking pace, subject distance decreasing steadily, focal length unchanged, floor parallax continuous"
+    },
+    "dolly-out": {
+      "aliases": [
+        "pull back",
+        "pull-back",
+        "dolly out",
+        "拉镜",
+        "后拉",
+        "缓慢后退",
+        "后退"
+      ],
+      "phrase": "the camera travels backward at a constant slow walking pace, subject distance increasing steadily, focal length unchanged, more of the set entering frame"
+    },
+    "truck-left": {
+      "aliases": [
+        "track left",
+        "crab left",
+        "横移左",
+        "左移"
+      ],
+      "phrase": "the camera slides laterally to screen left at a constant rate while holding its heading, foreground objects sweeping right-to-left faster than the background"
+    },
+    "truck-right": {
+      "aliases": [
+        "track right",
+        "crab right",
+        "横移右",
+        "右移"
+      ],
+      "phrase": "the camera slides laterally to screen right at a constant rate while holding its heading, foreground objects sweeping left-to-right faster than the background"
+    },
+    "pan-left": {
+      "aliases": [
+        "pan to the left",
+        "摇左",
+        "左摇",
+        "向左摇"
+      ],
+      "phrase": "the camera stays in place and rotates on its vertical axis toward screen left at a constant angular rate, no lateral translation, no parallax shift between foreground and background"
+    },
+    "pan-right": {
+      "aliases": [
+        "pan to the right",
+        "摇右",
+        "右摇",
+        "向右摇"
+      ],
+      "phrase": "the camera stays in place and rotates on its vertical axis toward screen right at a constant angular rate, no lateral translation, no parallax shift between foreground and background"
+    },
+    "tilt-up": {
+      "aliases": [
+        "tilt upward",
+        "上摇",
+        "仰摇"
+      ],
+      "phrase": "the camera stays in place and pitches upward at a constant angular rate, the horizon dropping steadily through frame"
+    },
+    "tilt-down": {
+      "aliases": [
+        "tilt downward",
+        "下摇",
+        "俯摇"
+      ],
+      "phrase": "the camera stays in place and pitches downward at a constant angular rate, the horizon rising steadily through frame"
+    },
+    "crane-up": {
+      "aliases": [
+        "boom up",
+        "jib up",
+        "升镜",
+        "上升"
+      ],
+      "phrase": "the camera rises vertically at a constant rate while holding its heading, lens height increasing, the ground plane opening up below"
+    },
+    "crane-down": {
+      "aliases": [
+        "boom down",
+        "jib down",
+        "降镜",
+        "下降"
+      ],
+      "phrase": "the camera descends vertically at a constant rate while holding its heading, lens height decreasing toward the subject"
+    },
+    "orbit": {
+      "aliases": [
+        "arc",
+        "arc around",
+        "circle",
+        "环绕",
+        "绕拍"
+      ],
+      "phrase": "the camera arcs around the subject at a constant radius and constant angular rate, subject distance unchanged, the background sweeping continuously behind them"
+    },
+    "handheld-follow": {
+      "aliases": [
+        "handheld",
+        "follow",
+        "跟拍",
+        "手持跟拍",
+        "手持",
+        "跟随"
+      ],
+      "phrase": "a handheld camera follows the subject from a constant distance and height, with small continuous irregular sway and natural step-induced bounce, never losing the subject from frame"
+    },
+    "steadicam-follow": {
+      "aliases": [
+        "tracking shot",
+        "steadicam",
+        "gimbal follow",
+        "稳定器跟拍"
+      ],
+      "phrase": "a stabilized camera follows the subject at a constant distance and constant height, floating without step bounce, the subject holding the same screen position throughout"
+    },
+    "whip-pan": {
+      "aliases": [
+        "swish pan",
+        "甩镜"
+      ],
+      "phrase": "the camera rotates rapidly on its vertical axis, producing directional motion blur across the whole frame, starting and ending on a readable composition"
+    },
+    "rack-focus": {
+      "aliases": [
+        "focus pull",
+        "变焦对焦",
+        "移焦"
+      ],
+      "phrase": "the camera does not move; focus shifts from the foreground plane to the background plane at a steady rate, depth of field unchanged"
+    },
+    "zoom-in": {
+      "aliases": [
+        "push zoom",
+        "变焦推近"
+      ],
+      "phrase": "the camera body stays in place while focal length increases at a steady rate, perspective compressing, no parallax change"
+    }
+  },
+  "vagueTerms": [
+    "cinematic",
+    "dynamic",
+    "smooth",
+    "epic",
+    "dramatic",
+    "beautiful",
+    "stunning",
+    "sweeping",
+    "nice",
+    "cool",
+    "artistic",
+    "aesthetic",
+    "运镜优美",
+    "有电影感",
+    "很有张力",
+    "唯美",
+    "炫酷"
+  ],
+  "clauses": {
+    "oneDominantMove": "Use exactly one dominant camera movement for the whole shot. Do not combine a pan with a dolly, or add a second move partway through.",
+    "noEditing": "This is a single continuous take from one physical camera. Do not cut, switch viewpoint, teleport the camera, insert reaction coverage, or create montage.",
+    "noEaseOut": "The shot ends during uninterrupted motion: the camera holds its declared speed and direction through the final frame. Do not decelerate, settle, hold, or form an ending composition.",
+    "alreadyMoving": "At frame zero the camera is already moving at the declared speed. Do not start from rest and do not add a new-shot ease-in."
+  }
+}

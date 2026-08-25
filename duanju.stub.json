@@ -1,0 +1,93 @@
+{
+  "ports": {
+    "llm": {
+      "impl": "stub",
+      "options": {
+        "seed": "noir"
+      }
+    },
+    "image": {
+      "impl": "stub"
+    },
+    "video": {
+      "impl": "stub"
+    },
+    "assetStore": {
+      "impl": "localfs",
+      "options": {
+        "root": "./.duanju/assets"
+      }
+    },
+    "state": {
+      "impl": "localjson",
+      "options": {
+        "root": "./.duanju/state"
+      }
+    },
+    "ledger": {
+      "impl": "noop",
+      "options": {}
+    },
+    "export": {
+      "impl": "ffmpeg"
+    },
+    "promptStrategy": {
+      "impl": "skill-anchored",
+      "options": {
+        "dir": "./prompts",
+        "profileDir": "./prompts/profiles",
+        "profile": "photoreal-drama"
+      }
+    }
+  },
+  "middleware": [
+    {
+      "impl": "camera-grammar",
+      "options": {
+        "appendClauses": [
+          "oneDominantMove"
+        ]
+      }
+    },
+    {
+      "impl": "tuning-log",
+      "options": {
+        "file": "./.duanju/tuning.ndjson"
+      }
+    }
+  ],
+  "pipeline": [
+    "plan",
+    "assets",
+    "refs",
+    "sheets",
+    "shots",
+    "camera-check",
+    "prompts",
+    "images",
+    "videos",
+    {
+      "id": "cover",
+      "options": {
+        "variants": 2,
+        "titleText": "雨夜目击"
+      }
+    },
+    "export"
+  ],
+  "concurrency": {
+    "images": 4,
+    "videos": 4,
+    "refs": 4
+  },
+  "budget": {
+    "maxCredits": 0,
+    "failFast": false
+  },
+  "defaults": {
+    "ratio": "9:16",
+    "kind": "shortdrama",
+    "shotSeconds": 4,
+    "shotsPerEpisode": 4
+  }
+}

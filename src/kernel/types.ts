@@ -1,0 +1,153 @@
+/**
+ * Domain model. Everything here is plain data — no behavior, no I/O.
+ *
+ * Design rule: assets (character / scene / prop) are first-class entities.
+ * A Shot references them by id; it never copies their description. Prompt text
+ * is a *compiled artifact*, recomputed from the referenced entities, so editing
+ * a character updates every shot that references it.
+ */
+
+export type AspectRatio = '9:16' | '16:9' | '1:1'
+
+export type ProjectKind = 'shortdrama' | 'comic' | 'ad' | 'custom'
+
+/** The single hard currency for binary data across every provider. */
+export interface AssetRef {
+  /** Content-addressed id (sha256 prefix) — stable across providers. */
+  readonly id: string
+  /** file:///... | https://... | libtv://node/<nodeKey> */
+  readonly uri: string
+  readonly mime: string
+  readonly bytes?: number
+  readonly meta: Readonly<Record<string, unknown>>
+}
+
+export interface ProjectPlan {
+  readonly title: string
+  readonly genre: string
+  readonly logline: string
+  readonly mainPlot: string
+  readonly sellingPoints: readonly string[]
+  readonly conflicts: readonly string[]
+  readonly styleGuide: string
+}
+
+export interface Character {
+  readonly id: string
+  readonly name: string
+  /** Appearance / wardrobe / hair / makeup — fed verbatim into prompts. */
+  readonly appearance: string
+  readonly personality?: string
+  /**
+   * `@base` — the identity truth source: white-background full-body reference.
+   * This is the ONLY character image fed to keyframes and image-to-video.
+   */
+  readonly refImage?: AssetRef
+  /**
+   * `@sheet` — a performance board (expressions, head angles, poses, hands)
+   * derived from a confirmed `@base`. For human review and prompt authoring
+   * only: never used as an identity reference for generation, because its
+   * multi-panel layout leaks grid artifacts into the output frame.
+   */
+  readonly sheetImage?: AssetRef
+}
+
+export interface Scene {
+  readonly id: string
+  readonly name: string
+  readonly visualDescription: string
+  readonly refImage?: AssetRef
+}
+
+export interface Prop {
+  readonly id: string
+  readonly name: string
+  readonly description: string
+}
+
+export interface Episode {
+  readonly id: string
+  readonly index: number
+  readonly title: string
+  readonly synopsis: string
+}
+
+export type ShotStatus =
+  | 'draft'
+  | 'prompted'
+  | 'stilled'
+  | 'clipped'
+  | 'failed'
+
+export interface Shot {
+  readonly id: string
+  readonly episodeId: string
+  readonly order: number
+  readonly durationSeconds: number
+  readonly plotDescription: string
+  readonly shotSize?: string
+  readonly cameraMove?: string
+  readonly characterAction?: string
+  readonly emotion?: string
+  readonly lightingAndAtmosphere?: string
+  readonly audioEffects?: string
+  readonly dialogue?: string
+  /** References, not copies. */
+  readonly characterIds: readonly string[]
+  readonly sceneId?: string
+  readonly propIds: readonly string[]
+  /** Compiled by the prompt strategy; may be hand-overridden. */
+  readonly imagePrompt?: string
+  readonly videoPrompt?: string
+  readonly negativePrompt?: string
+  /** Per-shot generation param overrides produced by the prompt strategy. */
+  readonly imageParams?: Readonly<Record<string, unknown>>
+  readonly videoParams?: Readonly<Record<string, unknown>>
+  readonly still?: AssetRef
+  readonly clip?: AssetRef
+  readonly status: ShotStatus
+  readonly failure?: string
+}
+
+export interface StageState {
+  readonly status: 'pending' | 'running' | 'done' | 'failed' | 'awaiting-input'
+  readonly startedAt?: string
+  readonly finishedAt?: string
+  readonly error?: string
+}
+
+export interface Project {
+  readonly id: string
+  readonly title: string
+  readonly kind: ProjectKind
+  readonly ratio: AspectRatio
+  readonly idea: string
+  readonly createdAt: string
+  readonly updatedAt: string
+  readonly plan?: ProjectPlan
+  readonly episodes: readonly Episode[]
+  readonly characters: readonly Character[]
+  readonly scenes: readonly Scene[]
+  readonly props: readonly Prop[]
+  readonly shots: readonly Shot[]
+  readonly finalCut?: AssetRef
+  /** Feed cover (3:4). Separate from finalCut: different ratio, different job. */
+  readonly cover?: AssetRef
+  readonly coverVariants?: readonly AssetRef[]
+  readonly stageState: Readonly<Record<string, StageState>>
+  /** Free-form scratch space for adapters (e.g. libtv shotId → nodeKey map). */
+  readonly adapterState: Readonly<Record<string, unknown>>
+}
+
+export const findCharacter = (
+  project: Project,
+  id: string,
+): Character | undefined => project.characters.find((c) => c.id === id)
+
+export const findScene = (
+  project: Project,
+  id: string,
+): Scene | undefined => project.scenes.find((s) => s.id === id)
+
+export const findProp = (project: Project, id: string): Prop | undefined =>
+  project.props.find((p) => p.id === id)

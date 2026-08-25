@@ -1,0 +1,22 @@
+# deps / build
+node_modules/
+dist/
+coverage/
+*.log
+
+# ── run outputs ───────────────────────────────────────────────────────────
+# State, generated media, ledgers and tuning logs. These carry provider CDN
+# URLs that embed the account uuid, plus whatever story you happened to run.
+# The pattern is deliberately broad: every project config picks its own root.
+.duanju*/
+.baishen*/
+.hanmen*/
+.libtv/
+
+# Agent/session scratch — transcripts, never publishable.
+.omc/
+
+# Local overrides
+.env
+.env.*
+duanju.local.json

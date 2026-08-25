@@ -1,0 +1,28 @@
+{
+  "ports": {
+    "llm":        { "impl": "stub" },
+    "image":      { "impl": "libtv", "options": { "model": "General image Pro", "canvas": "${LIBTV_PROJECT_UUID}" } },
+    "video":      { "impl": "libtv", "options": { "model": "Seedance 2.0 Mini", "canvas": "${LIBTV_PROJECT_UUID}", "resolution": "720p", "minSeconds": 4, "maxSeconds": 15 } },
+    "assetStore": { "impl": "localfs",   "options": { "root": "./.baishen/assets" } },
+    "state":      { "impl": "localjson", "options": { "root": "./.baishen/state" } },
+    "ledger":     { "impl": "noop" },
+    "export":     { "impl": "ffmpeg" },
+    "promptStrategy": { "impl": "template", "options": { "dir": "./prompts" } }
+  },
+  "middleware": [
+    { "impl": "retry", "options": { "attempts": 2, "baseDelayMs": 5000 } },
+    { "impl": "prompt-tune", "options": {
+        "image": { "suffix": "ancient Chinese costume drama still, no text, no watermark" },
+        "video": { "suffix": "subtle natural motion, steady camera, cinematic" },
+        "negativePrompt": "text, caption, subtitles, watermark, logo, modern clothing, modern objects, distorted hands, extra fingers, blurry, low quality"
+    }},
+    { "impl": "tuning-log", "options": { "file": "./.baishen/tuning.ndjson" } }
+  ],
+  "pipeline": [
+    { "id": "import", "options": { "file": "./examples/demo.screenplay.json", "shotSeconds": 4 } },
+    "refs", "prompts", "images", "videos", "export"
+  ],
+  "concurrency": { "images": 3, "videos": 2, "refs": 3 },
+  "budget": { "maxCredits": 0, "failFast": false },
+  "defaults": { "ratio": "9:16", "kind": "shortdrama", "shotSeconds": 4, "shotsPerEpisode": 5 }
+}

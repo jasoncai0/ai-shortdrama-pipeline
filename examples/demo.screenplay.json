@@ -1,0 +1,72 @@
+{
+  "title": "Placeholder Demo",
+  "genre": "noir thriller",
+  "logline": "A courier takes a wrong turn and sees something they cannot unsee.",
+  "mainPlot": "A late-night courier witnesses a crime in an alley and is spotted.",
+  "sellingPoints": ["cold open on the witness moment", "single-location tension"],
+  "conflicts": ["courier vs the person who saw them looking"],
+  "styleGuide": "cinematic neo-noir, teal and orange grade, 35mm film grain, shallow depth of field, rain",
+  "characters": [
+    {
+      "name": "Courier",
+      "appearance": "late-20s food courier, yellow rain jacket, buzz cut, wet face, insulated delivery backpack"
+    },
+    {
+      "name": "Stranger",
+      "appearance": "tall figure in a long black coat, leather gloves, face in shadow under a hood"
+    }
+  ],
+  "scenes": [
+    {
+      "name": "Neon Alley",
+      "visualDescription": "narrow wet back alley at night, neon signage reflecting on asphalt, steam vents, heavy rain"
+    }
+  ],
+  "props": [
+    { "name": "Delivery Box", "description": "yellow insulated delivery box" }
+  ],
+  "episodes": [
+    {
+      "title": "Wrong Turn",
+      "synopsis": "The courier stops at the mouth of the alley and is seen.",
+      "shots": [
+        {
+          "plotDescription": "the courier stops dead at the alley mouth",
+          "durationSeconds": 4,
+          "shotSize": "medium shot",
+          "cameraMove": "dolly-in",
+          "characterAction": "gripping the delivery box strap",
+          "emotion": "dread",
+          "lightingAndAtmosphere": "harsh neon rimlight, rain haze",
+          "characterNames": ["Courier"],
+          "sceneName": "Neon Alley",
+          "propNames": ["Delivery Box"]
+        },
+        {
+          "plotDescription": "extreme close-up of the courier's eyes widening",
+          "durationSeconds": 4,
+          "shotSize": "extreme close-up",
+          "cameraMove": "static",
+          "characterAction": "eyes darting",
+          "emotion": "terror",
+          "lightingAndAtmosphere": "blue neon on wet skin",
+          "characterNames": ["Courier"],
+          "sceneName": "Neon Alley",
+          "propNames": []
+        },
+        {
+          "plotDescription": "the stranger turns and looks straight down the alley",
+          "durationSeconds": 4,
+          "shotSize": "wide shot",
+          "cameraMove": "handheld-follow",
+          "characterAction": "turning slowly toward camera",
+          "emotion": "cold calm",
+          "lightingAndAtmosphere": "backlit by a single sodium lamp, rain streaks",
+          "characterNames": ["Stranger"],
+          "sceneName": "Neon Alley",
+          "propNames": []
+        }
+      ]
+    }
+  ]
+}

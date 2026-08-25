@@ -1,0 +1,215 @@
+{
+  "ports": {
+    "llm": {
+      "impl": "stub",
+      "options": {
+        "seed": "unused-import-script-needs-no-llm"
+      }
+    },
+    "image": {
+      "impl": "libtv",
+      "options": {
+        "model": "General image Pro",
+        "canvas": "${LIBTV_PROJECT_UUID}"
+      }
+    },
+    "video": {
+      "impl": "libtv",
+      "options": {
+        "model": "Seedance 2.0 Mini",
+        "canvas": "${LIBTV_PROJECT_UUID}",
+        "resolution": "720p",
+        "minSeconds": 4,
+        "maxSeconds": 15
+      }
+    },
+    "assetStore": {
+      "impl": "localfs",
+      "options": {
+        "root": "./.hanmen/assets"
+      }
+    },
+    "state": {
+      "impl": "localjson",
+      "options": {
+        "root": "./.hanmen/state"
+      }
+    },
+    "ledger": {
+      "impl": "noop",
+      "options": {}
+    },
+    "export": {
+      "impl": "ffmpeg",
+      "options": {
+        "fps": 24,
+        "crf": 20
+      }
+    },
+    "promptStrategy": {
+      "impl": "template",
+      "options": {
+        "dir": "./prompts"
+      }
+    }
+  },
+  "middleware": [
+    {
+      "impl": "retry",
+      "options": {
+        "attempts": 2,
+        "baseDelayMs": 5000
+      }
+    },
+    {
+      "impl": "prompt-tune",
+      "options": {
+        "image": {
+          "suffix": "东晋古装, 无现代物件, 无文字水印"
+        },
+        "video": {
+          "suffix": "运镜平稳, 电影感, 24fps"
+        },
+        "negativePrompt": "文字, 水印, logo, 现代服装, 眼镜, 手表, 畸形手指, 多余手指, 模糊, 低画质, 重复人脸"
+      }
+    },
+    {
+      "impl": "tuning-log",
+      "options": {
+        "file": "./.hanmen/tuning.ndjson"
+      }
+    }
+  ],
+  "pipeline": [
+    {
+      "id": "import-script",
+      "options": {
+        "file": "./scripts/screenplay.md",
+        "episodes": [
+          1,
+          9,
+          14,
+          18,
+          20
+        ],
+        "maxShotsPerEpisode": 4,
+        "styleGuide": "中国古装历史剧, 东晋魏晋风骨, 电影级构图, 柔和自然光, 浅景深, 胶片质感, 写实",
+        "characterAliases": {
+          "陈瑜之": [
+            "丑儿",
+            "丑叔",
+            "小郎",
+            "小郎君",
+            "少年",
+            "瑜之"
+          ],
+          "陈母李氏": [
+            "陈母",
+            "祖母",
+            "娘"
+          ],
+          "丁幼薇": [
+            "嫂子",
+            "嫂嫂",
+            "娘子",
+            "幼微"
+          ],
+          "陈润儿": [
+            "润儿"
+          ],
+          "陈宗之": [
+            "宗之"
+          ],
+          "褚文渊": [
+            "文谦",
+            "褚君"
+          ],
+          "全彦": [
+            "子敬",
+            "全常侍"
+          ],
+          "桓逸": [
+            "野云",
+            "桓参军"
+          ],
+          "陈满": [
+            "六伯父",
+            "六老爷"
+          ],
+          "来德": [
+            "来德"
+          ]
+        },
+        "characterVisuals": {
+          "陈瑜之": "十五岁东晋少年, 清瘦身形, 眉目如画极为俊美, 束发, 素色交领麻布长衫, 神情沉静深邃",
+          "陈母李氏": "五十五岁东晋妇人, 满头白发, 面容慈和有细纹, 深青色布裙, 手持念珠",
+          "陈润儿": "六岁女童, 圆脸, 双垂髻, 淡粉色小襦裙, 神情娇憨",
+          "陈宗之": "八岁男童, 清秀早熟, 束发小髻, 淡青色童子长衫, 神情认真",
+          "丁幼薇": "二十六岁东晋贵族女子, 白色素纱襦裙, 云鬓低垂, 清冷绝美, 眼神哀婉",
+          "褚文渊": "四十四岁东晋士族男子, 面白如敷粉, 保养得体貌若三十, 深紫色宽袖锦袍, 神情矜傲",
+          "全彦": "六十岁东晋名士, 白须, 宽袍大袖, 手持白色麈尾, 气度雍容",
+          "桓逸": "三十余岁东晋名士, 青色宽袍, 长发半束, 立于乌篷船头, 气质超逸如仙",
+          "陈满": "五十余岁东晋乡绅, 蓝色布衫, 面容刻薄, 三角眼, 神情倨傲",
+          "来德": "十六岁健壮少年仆从, 粗布短褐, 麦色皮肤, 眼神憨直"
+        },
+        "sceneVisuals": {
+          "云隐寺大殿": "东晋古寺大雄宝殿内部, 巨大金身佛像, 密布莲花油灯, 青烟缭绕, 昏暗殿堂, 香客跪拜",
+          "枫林渡口": "江南江畔渡口, 枫林, 曲柳, 石阶延入江水, 远处乌篷船, 江面开阔",
+          "丁府正厅": "东晋士族大宅正厅, 木构梁柱, 两张矮书案铺着帛纸笔墨, 竹帘垂落, 宾客列坐",
+          "竹帘后": "厅堂内侧竹帘之后, 光影斑驳, 半透视线, 幽静",
+          "冯府": "东晋县官宅院厅堂, 简朴木构, 屏风, 案几, 门帘",
+          "城南小石溪": "江南城郊溪畔, 溪水乱石, 两名士人对坐石上下围棋, 竹林掩映",
+          "宝珠山": "江南山岭, 苍松古木, 半山掩着一座小道院, 山道蜿蜒",
+          "道院前": "山中道院门前, 木栅院墙, 石阶, 垂帘, 松荫覆盖"
+        },
+        "props": [
+          {
+            "name": "柯亭笛",
+            "description": "一支泛着幽光的古竹笛"
+          },
+          {
+            "name": "紫竹箫",
+            "description": "一管细长紫竹洞箫"
+          },
+          {
+            "name": "长命灯",
+            "description": "佛前一盏莲花形铜油灯, 灯焰跳动"
+          }
+        ],
+        "shotSeconds": 5
+      }
+    },
+    {
+      "id": "refs",
+      "needs": [
+        "import-script"
+      ],
+      "options": {}
+    },
+    {
+      "id": "prompts",
+      "needs": [
+        "import-script"
+      ],
+      "options": {}
+    },
+    "images",
+    "videos",
+    "export"
+  ],
+  "concurrency": {
+    "images": 2,
+    "videos": 2,
+    "refs": 2
+  },
+  "budget": {
+    "maxCredits": 0,
+    "failFast": false
+  },
+  "defaults": {
+    "ratio": "9:16",
+    "kind": "shortdrama",
+    "shotSeconds": 5,
+    "shotsPerEpisode": 4
+  }
+}

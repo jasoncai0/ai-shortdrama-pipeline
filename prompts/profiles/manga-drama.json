@@ -1,0 +1,42 @@
+{
+  "id": "manga-drama",
+  "label": "Manga / webtoon 漫剧",
+  "source": "pgc-skills-export/us-pre/manga-character-sheet; us-pre/character-sheet-design §7 style router (anime / manga / webtoon / guoman)",
+
+  "anchors": {
+    "global": "AI-generated vertical manga-style micro-drama frame, consistent line language and cel shading, on-model faces and silhouettes",
+    "characterBase": "manga character identity reference, consistent line weight and cel shading, on-model face and silhouette, image-to-video ready",
+    "characterSheet": "manga character performance board derived from a confirmed base reference, expressions and head angles and poses and hands in a consistent line language",
+    "keyframe": "AI-generated manga-style keyframe for vertical micro-drama, consistent line language and cel shading",
+    "location": "manga background plate of the location with no characters present, consistent perspective and line language",
+    "cover": "manga / manju short drama cover, illustrated key art, genre and conflict legible instantly"
+  },
+
+  "negatives": {
+    "shared": "text, watermark, logo, subtitles, captions, speech bubbles, UI overlays, distorted hands, extra fingers, malformed anatomy, blurry, low quality",
+    "photoreal": "photoreal actors, live-action photography, cosplay, 3d render, plastic skin",
+    "characterBase": "scene, environment, poster composition, collage, readable text, labels, placeholder boxes",
+    "keyframe": "inconsistent line weight, off-model face, clothing change, prop change, random background change",
+    "cover": "duplicated title, invented subtitle, genre tag, fake platform UI, wrong-language text"
+  },
+
+  "characterBase": {
+    "spec": "one manga character identity reference on pure white, full body from hair top to footwear bottom, consistent line weight and cel shading, on-model face and silhouette, single consistent camera and ground line"
+  },
+
+  "characterSheet": {
+    "spec": "one manga character performance board on pure white, a compact turnaround in the upper quarter and below it distinct panels for expressions and head angles and poses and hand gestures, same face throughout with a different expression and angle in every panel"
+  },
+
+  "location": {
+    "spec": "manga background plate of the location with no characters, consistent perspective"
+  },
+
+  "cover": {
+    "spec": "illustrated manga key art cover, one dominant grammar, relationship or reversal legible immediately",
+    "ratio": "3:4",
+    "safeMarginPercent": 5
+  },
+
+  "continuityClause": "Keep the same character identity across shots: same face, hairstyle, costume, line weight, and shading system. Keep location perspective consistent."
+}
