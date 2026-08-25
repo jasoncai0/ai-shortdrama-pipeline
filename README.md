@@ -221,8 +221,8 @@ templates. Templates change per project; profiles change per model and genre.
 }
 ```
 
-The shipped profiles are transcribed from the `pgc-skills-export` short-drama
-skills, each citing its source — see [docs/skills-integration.md](docs/skills-integration.md).
+The shipped profiles are transcribed from an internal short-drama skill
+export (not distributed with this repo), each citing its source — see [docs/skills-integration.md](docs/skills-integration.md).
 
 ---
 

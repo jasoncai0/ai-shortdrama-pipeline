@@ -1,7 +1,7 @@
 {
   "id": "default",
   "label": "Camera grammar — physical phrasing for generative video",
-  "source": "pgc-skills-export/us-pre/longpoll-consistant references/seedance2-prompts.md (constant-motion wording, non-final ending) + references/continuity-spec.md (failure matrix); us-pre/generate-camera-blocking-board references/board-spec.md (one dominant movement per panel); us-pre/video-storyboard (panel variety)",
+  "source": "skill:longpoll-consistant references/seedance2-prompts.md (constant-motion wording, non-final ending) + references/continuity-spec.md (failure matrix); skill:generate-camera-blocking-board references/board-spec.md (one dominant movement per panel); skill:video-storyboard (panel variety)",
   "why": "Generative video models read 'slow' and 'cinematic' as style, not velocity, and their implied speed changes between generations. Every move below is phrased as observable physics — what changes in frame, and at what rate — so two shots asking for the same move actually get the same move.",
   "moves": {
     "static": {

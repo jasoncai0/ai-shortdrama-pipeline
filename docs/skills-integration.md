@@ -1,6 +1,6 @@
 # pgc-skills 短剧技能评估与集成
 
-评估对象：`pgc-skills-export`（内部技能导出包，未随本仓库分发）（293 个 skill，其中短剧相关 16 个）。
+评估对象：内部技能导出包（未随本仓库分发，293 个 skill，其中短剧/运镜相关 16 个）。
 
 ## 这些 skill 是什么
 
@@ -19,20 +19,20 @@
 
 | Skill | 价值 | 结论 | 落地位置 |
 |---|---|---|---|
-| `us-pre/real-short-drama` | ★★★★★ | **部分集成**（核心思想 + prompt 锚点） | `identityRefs` 端口契约、`prompts/profiles/photoreal-drama.json`、`refs`/`sheets` 两级资产 |
-| `character-sheet-design` (us+cn) | ★★★★☆ | **已集成** | `refs` 的 @base 规格、`sheets` stage |
-| `short-drama-cover-design` (us+cn) | ★★★★☆ | **已集成** | `cover` stage |
+| `real-short-drama` | ★★★★★ | **部分集成**（核心思想 + prompt 锚点） | `identityRefs` 端口契约、`prompts/profiles/photoreal-drama.json`、`refs`/`sheets` 两级资产 |
+| `character-sheet-design` （两个来源环境各有一份，剥离环境元数据后逐字相同） | ★★★★☆ | **已集成** | `refs` 的 @base 规格、`sheets` stage |
+| `short-drama-cover-design` （两个来源环境各有一份，剥离环境元数据后逐字相同） | ★★★★☆ | **已集成** | `cover` stage |
 | `cover-design-director/references/shortdrama.md` | ★★★★☆ | **已集成** | `cover` stage（3:4、5% 安全边距、标题逐字） |
-| `us-pre/video-storyboard` | ★★★☆☆ | **部分集成**（连续性与负向词） | profile 的 `continuityClause` / `negatives` |
-| `manga-character-sheet` (us+cn) | ★★★☆☆ | **已集成** | `prompts/profiles/manga-drama.json` |
-| `us-pre/costume-visual-design` | ★★☆☆☆ | 未集成 | 41 行、仅古装，值不抵一个 profile 文件；需要时抄进 profile 的 `styleGuide` |
-| `us-pre/longpoll-consistant` | ★★★★☆ | **部分集成**（运镜措辞与失败矩阵） | `camera-grammar` middleware、`prompts/camera/grammar.json` |
-| `us-pre/viral-short-video-production-studio` | ★★☆☆☆ | 未集成 | `shot-breakdown-system.md` 是 beat/task packing，与 MSU↔VTASK 同一件事（见文末）；`Camera_Behavior` 只是必填字段名，没有词表 |
-| `universal-multi-angle-grid` (us+cn) | ★★☆☆☆ | 未集成 | 静态多机位构图扩展，不是时间轴运镜；与本管线的 Shot 模型不对位 |
-| `us-pre/dance-choreography-studio` / `model-material-fission` / `animate-wallpaper` / motion-poster 系列 | ★☆☆☆☆ | 未集成 | 分别是编舞、静图扩展、反运镜固定机位、动效向 |
-| `us-pre/generate-camera-blocking-board` | ★★★★☆ | **部分集成**（规格可用，画板不可用） | `prompts/camera/grammar.json`、`camera-check` stage |
-| `us-pre/smart-title-sequence` | ★★☆☆☆ | 未集成 | 片头字幕需要合成层，本系统止步于片段拼接 |
-| `video-remake` (us+cn) | ★★☆☆☆ | 未集成 | LOCK/REPLACE/ADAPT/REMOVE 需要一个输入视频；本管线没有这个入口 |
+| `video-storyboard` | ★★★☆☆ | **部分集成**（连续性与负向词） | profile 的 `continuityClause` / `negatives` |
+| `manga-character-sheet` （两个来源环境各有一份，剥离环境元数据后逐字相同） | ★★★☆☆ | **已集成** | `prompts/profiles/manga-drama.json` |
+| `costume-visual-design` | ★★☆☆☆ | 未集成 | 41 行、仅古装，值不抵一个 profile 文件；需要时抄进 profile 的 `styleGuide` |
+| `longpoll-consistant` | ★★★★☆ | **部分集成**（运镜措辞与失败矩阵） | `camera-grammar` middleware、`prompts/camera/grammar.json` |
+| `viral-short-video-production-studio` | ★★☆☆☆ | 未集成 | `shot-breakdown-system.md` 是 beat/task packing，与 MSU↔VTASK 同一件事（见文末）；`Camera_Behavior` 只是必填字段名，没有词表 |
+| `universal-multi-angle-grid` （两个来源环境各有一份，剥离环境元数据后逐字相同） | ★★☆☆☆ | 未集成 | 静态多机位构图扩展，不是时间轴运镜；与本管线的 Shot 模型不对位 |
+| `dance-choreography-studio` / `model-material-fission` / `animate-wallpaper` / motion-poster 系列 | ★☆☆☆☆ | 未集成 | 分别是编舞、静图扩展、反运镜固定机位、动效向 |
+| `generate-camera-blocking-board` | ★★★★☆ | **部分集成**（规格可用，画板不可用） | `prompts/camera/grammar.json`、`camera-check` stage |
+| `smart-title-sequence` | ★★☆☆☆ | 未集成 | 片头字幕需要合成层，本系统止步于片段拼接 |
+| `video-remake` （两个来源环境各有一份，剥离环境元数据后逐字相同） | ★★☆☆☆ | 未集成 | LOCK/REPLACE/ADAPT/REMOVE 需要一个输入视频；本管线没有这个入口 |
 
 ## 已落地的四件事
 
@@ -192,3 +192,58 @@ profile 是否真的生效，看编译后的 prompt：
 node dist/cli.js status <projectId> --config duanju.stub.json
 python3 -c "import json;d=json.load(open('.duanju/state/<projectId>.json'));print(d['shots'][0]['imagePrompt'])"
 ```
+
+---
+
+## 附：把技能导入为标准 skill 文件夹
+
+`tools/import-pgc-skills.mjs` 把导出包转成标准 skill 文件夹并脱敏。
+
+```bash
+node tools/import-pgc-skills.mjs --src <导出包目录> --out ~/.claude/skills
+node tools/import-pgc-skills.mjs --src <导出包目录> --out /tmp/preview --dry-run
+```
+
+### 剥掉了什么，为什么
+
+| 剥掉 | 原因 |
+|---|---|
+| `bundle.json` / `asset.json` | 广场展示与导出元数据：`pin`、`categoryId`、`order`、i18n 标题、示例 prompt、`sha256`、`exportedFrom.assetId` |
+| frontmatter 的 `route_profile` | **另一套召回机制**。`positive_triggers` / `negative_triggers` / `primary_industry` 是那个平台的路由字段；标准 harness 只按 `description` 召回，留着既撑大召回面又不起作用 |
+| frontmatter 的 `extended.tool_policy` | `allowed_tools` 列的是宿主没有的工具，等于向模型广告不存在的能力 |
+| `namespace` / `title` / `version` | 目录概念，非指令 |
+| `agents/openai.yaml` | 平台接线 |
+
+### 改写了什么
+
+**环境标识** —— `us-pre` / `cn-pre` / `xla-industry` / `skillctl` / 跨技能路由里的 `industry/` 前缀，全部去掉。
+
+**内部工具名** → 中性工具名（不是描述短语）：
+
+| 原 | 现 |
+|---|---|
+| `ask_human` | `AskUser` |
+| `generate_media_v2` / `edit_media_v2` | `GenerateMedia` / `EditMedia` |
+| `generate_text` | `WriteFile` |
+| `asset_factory` / `skill_file` | `AssetStore` / `SkillFile` |
+| `fs_read` / `fs_list` / `fs_grep` | `Read` / `Glob` / `Grep` |
+
+一开始映射成描述短语（`generate_text` → "a written file"），结果把小节标题写成了
+`0.1P GENERATE_TEXT ... / a written file 真实 Canvas 文本节点持久化锁` —— 不成句。
+这类 token 同时出现在标题、正文和名词位置，**只能用另一个 token 替换**。大小写保留：
+`GENERATE_TEXT` → `WRITEFILE`。
+
+### 处理召回问题
+
+**超长 SKILL.md 拆分** —— `real-short-drama` 18952 行。调用即全量入上下文。
+按 `##` 拆进 `references/`，正文留索引，首节保持内联（它是入口）。**18952 → 122 行 + 98 个引用文件**。
+版本变更日志（`> **v0.1.2 变更说明**：…`）单独进 `references/00-changelog.md` —— 它解释规则怎么演变来的，
+不是规则本身，不该每次调用都加载。默认阈值 1200 行，`--split-over 0` 关闭。
+
+**描述过薄** —— `costume-visual-design` 源描述只有 `Skill for 古装视觉设计.`（17 字符）。
+召回只匹配描述，这种描述永远不会被命中。脚本会 warn，并对已知的这一条用正文重写的描述覆盖。
+
+### 多环境副本
+
+同一技能在两个环境各有一份。脚本**实际逐字比对**剥离元数据后的正文再去重，不假设相同 ——
+8 个双份技能验证结果均为 `duplicatesIdentical: true`。

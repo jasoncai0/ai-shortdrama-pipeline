@@ -1,7 +1,7 @@
 {
   "id": "photoreal-drama",
   "label": "AI photoreal vertical micro-drama",
-  "source": "pgc-skills-export/us-pre/real-short-drama §0.1 四 (Prompt 编译身份锁定), 五 (禁止输出倾向); us-pre/character-sheet-design §2/§9; us-pre/video-storyboard (continuity + negatives)",
+  "source": "skill:real-short-drama §0.1 四 (Prompt 编译身份锁定), 五 (禁止输出倾向); skill:character-sheet-design §2/§9; skill:video-storyboard (continuity + negatives)",
 
   "anchors": {
     "global": "AI-generated photorealistic human vertical micro-drama, live-action-looking synthetic video frame, created for AI image/video generation, not for real film crew shooting, not a behind-the-scenes production reference",

@@ -11,7 +11,8 @@ import { configError } from '../kernel/errors.js'
  * It lives in editable JSON under `prompts/profiles/` rather than in code,
  * because this is craft knowledge that gets tuned per project and per model —
  * not program logic. The shipped profiles are transcribed from the
- * `pgc-skills-export` short-drama skills; each file cites its source.
+ * internal short-drama skill export (not distributed here); each file
+ * cites the skill it came from.
  */
 
 const assetSpec = z.object({

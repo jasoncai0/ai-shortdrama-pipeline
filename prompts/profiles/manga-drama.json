@@ -1,7 +1,7 @@
 {
   "id": "manga-drama",
   "label": "Manga / webtoon 漫剧",
-  "source": "pgc-skills-export/us-pre/manga-character-sheet; us-pre/character-sheet-design §7 style router (anime / manga / webtoon / guoman)",
+  "source": "skill:manga-character-sheet; skill:character-sheet-design §7 style router (anime / manga / webtoon / guoman)",
 
   "anchors": {
     "global": "AI-generated vertical manga-style micro-drama frame, consistent line language and cel shading, on-model faces and silhouettes",
