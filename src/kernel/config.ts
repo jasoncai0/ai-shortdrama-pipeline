@@ -92,12 +92,33 @@ export interface NormalizedStage {
   readonly options: Record<string, unknown>
 }
 
-export const normalizeStages = (cfg: Config): readonly NormalizedStage[] =>
-  cfg.pipeline.map((entry) =>
+export const normalizeStages = (cfg: Config): readonly NormalizedStage[] => {
+  const stages = cfg.pipeline.map((entry) =>
     typeof entry === 'string'
       ? { id: entry, use: entry, options: {} }
       : { id: entry.id, use: entry.use ?? entry.id, needs: entry.needs, options: entry.options },
   )
+
+  // Stage state is keyed by id, so two entries sharing one id are the same
+  // stage as far as the run is concerned: the second's options are what runs,
+  // the first is marked done without having done anything, and the pipeline
+  // silently loses a step. Two gates both called "gate" is the easy way to hit
+  // this — use distinct ids with `"use": "gate"`.
+  const seen = new Set<string>()
+  const duplicates = stages.map((s) => s.id).filter((id) => {
+    const repeat = seen.has(id)
+    seen.add(id)
+    return repeat
+  })
+  if (duplicates.length > 0) {
+    throw configError(
+      `Duplicate pipeline stage id(s): ${[...new Set(duplicates)].join(', ')}`,
+      'Give each pipeline entry a unique "id" and point it at the plugin with "use", e.g. { "id": "gate-story", "use": "gate" }.',
+    )
+  }
+
+  return stages
+}
 
 export const normalizeMiddleware = (cfg: Config): readonly PortBinding[] =>
   cfg.middleware.map((entry) =>
@@ -142,7 +163,13 @@ export const loadConfig = async (path: string): Promise<Config> => {
     const issues = parsed.error.issues
       .map((i) => `  - ${i.path.join('.') || '(root)'}: ${i.message}`)
       .join('\n')
-    throw configError(`Config at ${abs} failed validation:\n${issues}`)
+    // A union failure reports only "Invalid input", which for the two entry
+    // shapes in this config is never enough to act on — `middleware` takes
+    // `impl` while `pipeline` takes `id`, and mixing them says nothing.
+    const hint = parsed.error.issues.some((i) => i.path[0] === 'middleware')
+      ? 'A middleware entry is "impl" (the plugin name), e.g. { "impl": "retry", "options": {} } — "id" belongs to pipeline entries.'
+      : undefined
+    throw configError(`Config at ${abs} failed validation:\n${issues}`, hint)
   }
   return parsed.data
 }

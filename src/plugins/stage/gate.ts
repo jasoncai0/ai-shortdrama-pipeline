@@ -9,8 +9,10 @@ import type { StagePort } from '../../kernel/ports.js'
  * buried in a stage. Gates halt the run and persist state; `duanju resume`
  * continues past them.
  *
- * A gate id must be unique per pipeline position — use `"id": "gate"` with an
- * explicit `label` option, or distinct ids like `gate-story` / `gate-assets`.
+ * A gate id must be unique per pipeline position, and the id comes from the
+ * pipeline entry rather than the options — two gates are
+ * `{ "id": "gate-story", "use": "gate" }` and
+ * `{ "id": "gate-assets", "use": "gate" }`, each with its own `label`.
  */
 export default definePlugin<StagePort>({
   port: 'stage',
@@ -22,7 +24,7 @@ export default definePlugin<StagePort>({
 
     return {
       name: 'gate',
-      id: typeof options['id'] === 'string' ? options['id'] : 'gate',
+      id: 'gate',
       needs: [],
 
       run: async (ctx) => {

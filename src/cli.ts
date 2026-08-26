@@ -4,7 +4,7 @@ import { writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { buildApp } from './app.js'
 import { loadConfig } from './kernel/config.js'
-import { describeError } from './kernel/errors.js'
+import { configError, describeError } from './kernel/errors.js'
 import { createLogger, type LogLevel } from './kernel/logger.js'
 import { assertCaps, runPipeline } from './kernel/pipeline.js'
 import { DEFAULT_CONFIG } from './default-config.js'
@@ -282,6 +282,26 @@ interface Args {
   readonly flags: Readonly<Record<string, string | boolean>>
 }
 
+/**
+ * Every flag the CLI understands.
+ *
+ * An unknown flag used to be collected and ignored, so `--auto-approve`
+ * (there is no such flag; it is `--yes`) ran a paid pipeline that then stopped
+ * dead at the first gate. A typo in a flag that costs money must be an error.
+ */
+const KNOWN_FLAGS = new Set([
+  'config',
+  'title',
+  'kind',
+  'ratio',
+  'idea',
+  'episodes',
+  'shots',
+  'limit-shots',
+  'yes',
+  'log',
+])
+
 const parseArgs = (argv: readonly string[]): Args => {
   const positional: string[] = []
   const flags: Record<string, string | boolean> = {}
@@ -302,6 +322,14 @@ const parseArgs = (argv: readonly string[]): Args => {
       positional.push(token)
     }
   }
+  const unknown = Object.keys(flags).filter((key) => !KNOWN_FLAGS.has(key))
+  if (unknown.length > 0) {
+    throw configError(
+      `Unknown flag(s): ${unknown.map((f) => `--${f}`).join(', ')}`,
+      `Known flags: ${[...KNOWN_FLAGS].map((f) => `--${f}`).join(', ')}`,
+    )
+  }
+
   return { positional, flags }
 }
 
