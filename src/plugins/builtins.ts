@@ -9,6 +9,7 @@ export const builtins: BuiltinTable = {
   'llm/deepseek': () => import('./llm/deepseek.js'),
   'llm/openai-compat': () => import('./llm/openai-compat.js'),
   'llm/skill-inline': () => import('./llm/skill-inline.js'),
+  'llm/claude-cli': () => import('./llm/claude-cli.js'),
   'llm/stub': () => import('./llm/stub.js'),
 
   'image/libtv': () => import('./image/libtv.js'),

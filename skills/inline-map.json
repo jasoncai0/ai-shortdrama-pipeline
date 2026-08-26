@@ -31,10 +31,8 @@
       {
         "skill": "real-short-drama",
         "sections": [
-          "镜头模板",
           "micro-shot-language-voice",
-          "micro_shot_unit-count-soft",
-          "dialogue-sentence-block"
+          "micro_shot_unit-count-soft"
         ]
       }
     ],

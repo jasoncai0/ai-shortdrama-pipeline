@@ -22,6 +22,7 @@ Usage:
   duanju stage <projectId> <stageId>       force-rerun one stage
   duanju status [projectId]                list projects / show one
   duanju plugins                           list available plugins per port
+  duanju agent --goal "<text>" [--project <id>]   LLM-driven creative director
 
 Options:
   --config <path>       config file (default ./duanju.config.json)
@@ -59,6 +60,8 @@ const main = async (argv: readonly string[]): Promise<number> => {
       return statusCommand(args, log)
     case 'plugins':
       return pluginsCommand(args, log)
+    case 'agent':
+      return agentCommand(args, log)
     default:
       log.error(`Unknown command "${command}"`)
       out(USAGE)
@@ -227,6 +230,85 @@ const pluginsCommand = async (args: Args, log: Logger): Promise<number> => {
   return 0
 }
 
+const agentCommand = async (args: Args, log: Logger): Promise<number> => {
+  const goal = args.flags['goal']
+  if (typeof goal !== 'string' || goal.length === 0) {
+    log.error('--goal is required.')
+    return 2
+  }
+  const config = await loadConfig(configPath(args))
+  const app = await buildApp(config, log, process.cwd())
+
+  const { runAgent } = await import('./agent/core.js')
+  const { buildAgentTools } = await import('./agent/tools.js')
+  const { loadSkill } = await import('./lib/skillset.js')
+
+  // Resume an existing project, or open a fresh one the stages will fill.
+  const projectId = typeof args.flags['project'] === 'string' ? args.flags['project'] : undefined
+  const existing = projectId ? await app.ports.state.load(projectId) : null
+  if (projectId && !existing) {
+    log.error(`project ${projectId} not found`)
+    return 1
+  }
+  const project: Project = existing ?? {
+    id: `p${randomUUID().slice(0, 8)}`,
+    title: 'Untitled',
+    kind: (args.flags['kind'] as ProjectKind) ?? config.defaults.kind,
+    ratio: (args.flags['ratio'] as AspectRatio) ?? config.defaults.ratio,
+    idea: goal,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    episodes: [], characters: [], scenes: [], props: [], shots: [],
+    stageState: {}, adapterState: {},
+  }
+  app.setProject(project)
+  const holder = { current: project }
+
+  const skillsDir = typeof args.flags['skills'] === 'string' ? args.flags['skills'] : './skills'
+  const tools = buildAgentTools(app, config, holder, log, {
+    skillsDir,
+    stageDefaults: {
+      episodes: numberFlag(args.flags['episodes']) ?? 1,
+      shotsPerEpisode: numberFlag(args.flags['shots']) ?? config.defaults.shotsPerEpisode,
+      shotSeconds: config.defaults.shotSeconds,
+    },
+  })
+
+  // Session-start injection, canda-style: the skills directory (names and
+  // descriptions only — bodies are fetched on demand via skill_file).
+  const skillNames = ['real-short-drama', 'short-drama-cover-design', 'character-sheet-design']
+  const lines: string[] = []
+  for (const name of skillNames) {
+    try {
+      const skill = await loadSkill(process.cwd(), skillsDir, name)
+      lines.push(`- ${name}: ${skill.description.slice(0, 160)}`)
+    } catch {
+      /* not imported on this machine — the directory just omits it */
+    }
+  }
+  const openingContext =
+    lines.length > 0
+      ? `可用生产规范技能（用 skill_list 看章节、skill_file 取正文）：\n${lines.join('\n')}`
+      : undefined
+
+  const sessionFile = `./.duanju/agent/${holder.current.id}.jsonl`
+  log.info(`agent: project ${holder.current.id}, session log → ${sessionFile}`)
+
+  const result = await runAgent({
+    goal,
+    llm: app.ports.llm,
+    tools,
+    log,
+    sessionFile,
+    maxTurns: numberFlag(args.flags['max-turns']) ?? 16,
+    openingContext,
+  })
+
+  await app.ports.state.save(holder.current)
+  out(JSON.stringify({ projectId: holder.current.id, done: result.done, turns: result.turns, summary: result.summary }, null, 2))
+  return result.done ? 0 : 1
+}
+
 // ─── shared execution ─────────────────────────────────────────────────────
 
 const execute = async (
@@ -299,6 +381,7 @@ interface Args {
  * dead at the first gate. A typo in a flag that costs money must be an error.
  */
 const KNOWN_FLAGS = new Set([
+  'goal', 'project', 'max-turns', 'skills',
   'config',
   'title',
   'kind',
