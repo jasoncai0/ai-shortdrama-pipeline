@@ -25,3 +25,6 @@ duanju.local.json
 scripts/screenplay.md
 scripts/*.md
 !scripts/README.md
+
+# Cast sheets are derived from private screenplays.
+/casts/

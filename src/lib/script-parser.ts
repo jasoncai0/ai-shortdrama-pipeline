@@ -79,6 +79,16 @@ const STRIP_TRAILING_PAREN_RE = /[(（][^)）]*[)）]\s*$/
 
 const TABLE_ROW_RE = /^\|(.+)\|\s*$/
 
+/** `|---|---|---|` — the row markdown puts under a table's header. */
+const isSeparatorRow = (line: string): boolean => {
+  const match = TABLE_ROW_RE.exec(line)
+  if (!match?.[1]) return false
+  return match[1]
+    .split('|')
+    .map((c) => c.trim())
+    .every((c) => /^:?-{2,}:?$/.test(c))
+}
+
 /** `| a | b | c |` → `['a','b','c']`, or null for separator rows. */
 const tableCells = (line: string): readonly string[] | null => {
   const match = TABLE_ROW_RE.exec(line)
@@ -176,6 +186,8 @@ export const parseScript = (markdown: string): ParsedScript => {
 
   type Section = 'head' | 'characters' | 'overview' | 'body' | 'appendix'
   let section: Section = 'head'
+  // Set by the 人物表 separator row; rows before it are the table header.
+  let castTableStarted = false
 
   let episode: {
     index: number
@@ -251,8 +263,15 @@ export const parseScript = (markdown: string): ParsedScript => {
     }
 
     if (section === 'characters') {
+      // Markdown puts the separator directly under the header, so anything
+      // before it is the header — whatever it happens to be called. Matching
+      // header text by name imported 「姓名」 as a character.
+      if (isSeparatorRow(line)) {
+        castTableStarted = true
+        continue
+      }
       const cells = tableCells(line)
-      if (cells && cells.length >= 3 && cells[0] !== '角色') {
+      if (castTableStarted && cells && cells.length >= 3) {
         characters.push(...splitPairedRow(cells))
       }
       continue
@@ -323,7 +342,13 @@ export const charactersInLine = (
   line: ParsedLine,
   characters: readonly ParsedCharacter[],
 ): readonly string[] => {
-  const haystack = `${line.speaker ?? ''} ${line.action ?? ''} ${line.text}`
+  // Names inside spoken words are people talked *about* — 「丙哪儿去了」 says
+  // outright that 丙 is not there. Only a stage direction or an action line
+  // puts someone on camera, so a dialogue line's text is not searched.
+  const haystack =
+    line.kind === 'dialogue'
+      ? `${line.speaker ?? ''} ${line.action ?? ''}`
+      : `${line.speaker ?? ''} ${line.action ?? ''} ${line.text}`
 
   const matches = (c: ParsedCharacter): boolean => {
     if (line.speaker) {

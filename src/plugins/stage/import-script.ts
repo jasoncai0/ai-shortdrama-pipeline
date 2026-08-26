@@ -5,7 +5,15 @@ import { definePlugin } from '../../kernel/registry.js'
 import { charactersInLine, parseScript, withAliases } from '../../lib/script-parser.js'
 import { paceBeats } from '../../lib/pacing.js'
 import type { StagePort } from '../../kernel/ports.js'
-import type { Character, Episode, InsertRole, Prop, Scene, Shot } from '../../kernel/types.js'
+import type {
+  Character,
+  Episode,
+  InsertRole,
+  Prop,
+  Scene,
+  Shot,
+  WardrobeLook,
+} from '../../kernel/types.js'
 import type { ParsedEpisode, ParsedLine, ParsedScript } from '../../lib/script-parser.js'
 
 /**
@@ -71,6 +79,9 @@ export default definePlugin<StagePort>({
   create: (options, deps) => ({
     name: 'import-script',
     id: 'import-script',
+    // The screenplay already is the plan, the cast and the shot list, so the
+    // three LLM stages that would otherwise invent them are satisfied here.
+    provides: ['plan', 'assets', 'shots'],
     needs: [],
 
     run: async (ctx) => {
@@ -153,6 +164,11 @@ export default definePlugin<StagePort>({
       // Only characters that actually appear in the selected episodes get a
       // reference image — otherwise a 1-episode run pays for 16 portraits.
       const appearing = collectAppearing(selected, script)
+      const epithets = asRecord(options['epithets'])
+      // Hand-authored wardrobe short-circuits the wardrobe stage's LLM
+      // proposal, which is the only way to dress a cast without an LLM key.
+      const wardrobeOverrides = wardrobeMap(options['wardrobe'])
+      const billingOverrides = asRecord(options['billing'])
       const characters: readonly Character[] = script.characters
         .filter((c) => appearing.has(c.name))
         .map((c, index) => ({
@@ -162,6 +178,14 @@ export default definePlugin<StagePort>({
             characterVisuals[c.name] ??
             `${styleGuide}, ${c.role}, ${c.persona}`.replace(/\s+/g, ' '),
           personality: c.persona,
+          // The cast table's 身份 column is already a one-line identity, which
+          // is what an intro card wants. An override wins because 「男主」 is a
+          // production label, not something to put on screen.
+          epithet: asString(epithets[c.name]) ?? c.role,
+          ...(wardrobeOverrides[c.name] ? { wardrobe: wardrobeOverrides[c.name] } : {}),
+          ...(asString(billingOverrides[c.name])
+            ? { billing: billingOverrides[c.name] as 'lead' | 'supporting' | 'extra' }
+            : {}),
         }))
 
       const sceneNames = [
@@ -367,10 +391,23 @@ export default definePlugin<StagePort>({
         `import-script: pacing — ${narrationInsertCount} 旁白留白镜, ${transitionInsertCount} 转场空镜` +
           (suppressedTransitions > 0 ? `, ${suppressedTransitions} 处场景切换未加转场(受 maxInsertRatio 限制)` : ''),
       )
+      // A name can be mentioned in dialogue without ever being on camera, and
+      // the cast table lists the whole season. Anyone with no shot of their own
+      // would still be paid for twice downstream — @base and @sheet — so they
+      // are dropped here rather than in each image stage.
+      const onCamera = new Set(shots.flatMap((shot) => shot.characterIds ?? []))
+      const cast = characters.filter((c) => onCamera.has(c.id))
+      const offCamera = characters.filter((c) => !onCamera.has(c.id))
+      if (offCamera.length > 0) {
+        deps.log.info(
+          `import-script: ${offCamera.map((c) => c.name).join('、')} 只被提及、无独立镜头 — 不出设定图`,
+        )
+      }
+
       deps.log.info(
-        `import-script: 《${script.title}》 — ${episodes.length} episodes, ${characters.length} characters, ${scenes.length} scenes, ${shots.length} shots`,
+        `import-script: 《${script.title}》 — ${episodes.length} episodes, ${cast.length} characters, ${scenes.length} scenes, ${shots.length} shots`,
       )
-      ctx.emit('import-script', { shots: shots.length, characters: characters.length })
+      ctx.emit('import-script', { shots: shots.length, characters: cast.length })
 
       return {
         kind: 'ok',
@@ -387,7 +424,7 @@ export default definePlugin<StagePort>({
             styleGuide,
           },
           episodes,
-          characters,
+          characters: cast,
           scenes,
           props,
           shots,
@@ -473,6 +510,31 @@ const numberArray = (value: unknown): readonly number[] =>
 
 const numberOption = (value: unknown, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback
+
+/**
+ * `{ "陈瑜之": [{ label, description, occasion? }] }` from config.
+ *
+ * Descriptions are garments only — the wardrobe stage sanitises identity words
+ * out of them, so anything about the face here is dropped rather than obeyed.
+ */
+const wardrobeMap = (value: unknown): Record<string, readonly WardrobeLook[]> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).flatMap(([name, raw]) => {
+      if (!Array.isArray(raw)) return []
+      const looks = raw.flatMap((item, index): readonly WardrobeLook[] => {
+        if (!item || typeof item !== 'object') return []
+        const row = item as Record<string, unknown>
+        const label = asString(row['label'])
+        const description = asString(row['description'])
+        if (!label || !description) return []
+        const occasion = asString(row['occasion'])
+        return [{ id: `w${index + 1}`, label, description, ...(occasion ? { occasion } : {}) }]
+      })
+      return looks.length > 0 ? [[name, looks] as const] : []
+    }),
+  )
+}
 
 const propList = (value: unknown): readonly Prop[] => {
   if (!Array.isArray(value)) return []
