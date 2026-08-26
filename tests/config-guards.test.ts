@@ -91,3 +91,24 @@ describe('middleware entries', () => {
     })
   })
 })
+
+describe('aspect ratio is never guessed', () => {
+  test('a config with no defaults.ratio loads with it unset, not filled in', async () => {
+    const path = await write({ ports: PORTS, pipeline: ['plan'] })
+    const config = await loadConfig(path)
+
+    // 9:16 and 16:9 compose every shot differently, so a silent default means
+    // reshooting the whole production when the guess is wrong.
+    expect(config.defaults.ratio).toBeUndefined()
+  })
+
+  test('an explicit ratio is kept', async () => {
+    const path = await write({ ports: PORTS, pipeline: ['plan'], defaults: { ratio: '16:9' } })
+    await expect(loadConfig(path)).resolves.toMatchObject({ defaults: { ratio: '16:9' } })
+  })
+
+  test('the scaffolded config does not decide framing for the user', async () => {
+    const { DEFAULT_CONFIG } = await import('../src/default-config.js')
+    expect(DEFAULT_CONFIG.defaults).not.toHaveProperty('ratio')
+  })
+})

@@ -22,8 +22,8 @@ export const DEFAULT_CONFIG = {
         maxSeconds: 15,
       },
     },
-    assetStore: { impl: 'localfs', options: { root: './.duanju/assets' } },
-    state: { impl: 'localjson', options: { root: './.duanju/state' } },
+    assetStore: { impl: 'localfs', options: { root: 'assets' } },
+    state: { impl: 'localjson', options: { root: 'state' } },
     // Providers meter their own credits; a second set of books would only
     // ever disagree. Swap to 'localledger' for a spend ceiling + dedupe.
     ledger: { impl: 'noop', options: {} },
@@ -51,7 +51,7 @@ export const DEFAULT_CONFIG = {
     { impl: 'retry', options: { attempts: 3, baseDelayMs: 3000 } },
     { impl: 'camera-grammar', options: { appendClauses: ['oneDominantMove'] } },
     { impl: 'prompt-tune', options: { video: { suffix: 'steady camera, cinematic lighting' } } },
-    { impl: 'tuning-log', options: { file: './.duanju/tuning.ndjson' } },
+    { impl: 'tuning-log', options: { file: 'tuning.ndjson' } },
   ],
   pipeline: [
     'plan',
@@ -73,5 +73,8 @@ export const DEFAULT_CONFIG = {
   ],
   concurrency: { images: 3, videos: 2, refs: 3 },
   budget: { maxCredits: 0, failFast: false },
-  defaults: { ratio: '9:16', kind: 'shortdrama', shotSeconds: 5, shotsPerEpisode: 8 },
+  // `ratio` is deliberately absent: the scaffold should not decide the framing
+  // of the whole production. `duanju run` refuses without --ratio or an explicit
+  // default here.
+  defaults: { kind: 'shortdrama', shotSeconds: 5, shotsPerEpisode: 8 },
 } as const

@@ -86,7 +86,16 @@ const runCommand = async (args: Args, log: Logger): Promise<number> => {
   const config = await loadConfig(configPath(args))
   const app = await buildApp(config, log, process.cwd())
 
+  // Framing is not a detail that can be defaulted: 9:16 and 16:9 compose shots
+  // differently, so a wrong guess is a full reshoot of everything already paid
+  // for. If neither the flag nor the config says, stop and ask.
   const ratio = (args.flags['ratio'] as AspectRatio) ?? config.defaults.ratio
+  if (!ratio) {
+    throw configError(
+      'No aspect ratio given, and the config sets no default.',
+      'Pass --ratio 9:16 (vertical short drama), --ratio 16:9 (landscape) or --ratio 1:1, or set defaults.ratio in the config.',
+    )
+  }
   const kind = (args.flags['kind'] as ProjectKind) ?? config.defaults.kind
 
   assertCaps(app.stages, app.ports, ratio)

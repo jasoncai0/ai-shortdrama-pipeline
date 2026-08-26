@@ -457,6 +457,56 @@ Cost protection that is **independent of the ledger** and always on:
   (wrong ratio, no image-to-video mode) *before* anything is spent.
 - **`--limit-shots 1`** — smoke-run the real providers for the price of one shot.
 
+## Production rules
+
+Five rules the pipeline is built around. Each is either enforced in code or is a
+pipeline element you are expected to keep — they exist because breaking them
+costs a reshoot, not a retry.
+
+**1. Aspect ratio is asked, never assumed.** `defaults.ratio` has no default and
+the scaffolded config omits it, so `duanju run` without `--ratio` stops with a
+prompt. 9:16 and 16:9 compose every shot differently, so a wrong guess is a
+reshoot of everything already paid for. *Enforced: `kernel/config.ts`,
+`cli.ts`.*
+
+**2. Character designs are confirmed before anything else is generated.** Put a
+gate straight after `wardrobe`:
+
+```json
+{ "id": "gate-character-design", "use": "gate",
+  "options": { "label": "character-design" } }
+```
+
+Every later shot uses `@base` as its identity reference, so an unconfirmed face
+propagates into the whole season. Confirm the cast, then `duanju resume`.
+
+**3. Narration is planned at script-import time, not bolted on at dubbing.**
+`import-script` attaches `(OS)` lines to shots as `narration`, and where a beat
+already carries dialogue it allocates a dedicated 留白 insert for the voice-over
+instead — so no shot ever has to speak two voices at once. Verify with the
+import log:
+
+```
+import-script: pacing — 7 旁白留白镜, 2 转场空镜
+```
+
+Keep narration sparse. It is a pacing tool, and a scene that breathes on picture
+and BGM alone is usually the better cut — `narrationCharBudget` and
+`maxInsertRatio` bound how much of the episode inserts may take.
+
+**4. Subtitles come after the picture is locked, and name their voice.** Put a
+second gate before `music` / `intro-cards` / `subtitles`; captioning a cut you
+are about to change is wasted work. Character lines are captioned
+`说话人：台词`, narration is italicised, so the audience can always tell who is
+speaking (`lib/srt.ts: decorateCue`).
+
+**5. Scene changes get a connective shot.** `transitionInserts` adds an
+approach 空镜 at every mid-episode scene change: the sky and eaves above an
+interior, the wide landscape for an exterior — never the destination room
+itself, which reads as a continuity error. Camera phrasing for these comes from
+`middleware/camera-grammar` and is checked by `stage/camera-check`; both are
+already wired, so no separate 运镜 skill is needed.
+
 ## Commands
 
 ```bash

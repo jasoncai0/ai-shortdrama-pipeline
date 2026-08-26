@@ -69,13 +69,20 @@ export const configSchema = z.object({
     .default({ maxCredits: 0, failFast: false }),
   defaults: z
     .object({
-      ratio: z.enum(['9:16', '16:9', '1:1']).default('9:16'),
+      /**
+       * No default on purpose.
+       *
+       * Aspect ratio decides the framing of every shot, so guessing it wrong
+       * means regenerating everything that was already paid for. A run with no
+       * `--ratio` and no configured default must stop and ask rather than
+       * quietly shooting vertical.
+       */
+      ratio: z.enum(['9:16', '16:9', '1:1']).optional(),
       kind: z.enum(['shortdrama', 'comic', 'ad', 'custom']).default('shortdrama'),
       shotSeconds: z.number().min(1).max(30).default(5),
       shotsPerEpisode: z.number().int().min(1).max(60).default(8),
     })
     .default({
-      ratio: '9:16',
       kind: 'shortdrama',
       shotSeconds: 5,
       shotsPerEpisode: 8,
