@@ -1,9 +1,10 @@
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
-import { isAbsolute, join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { stateError } from '../../kernel/errors.js'
 import { definePlugin } from '../../kernel/registry.js'
 import type { StatePort } from '../../kernel/ports.js'
 import type { Project } from '../../kernel/types.js'
+import { resolveDataPath } from '../../lib/datadir.js'
 
 /**
  * Default state store: one JSON file per project, written atomically.
@@ -16,8 +17,7 @@ export default definePlugin<StatePort>({
   port: 'state',
   name: 'localjson',
   create: (options, deps) => {
-    const rawRoot = typeof options['root'] === 'string' ? options['root'] : './.duanju/state'
-    const root = isAbsolute(rawRoot) ? rawRoot : resolve(deps.cwd, rawRoot)
+    const root = resolveDataPath(options['root'], deps.cwd, 'state')
     const fileFor = (id: string): string => join(root, `${sanitize(id)}.json`)
 
     return {

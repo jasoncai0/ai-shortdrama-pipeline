@@ -2,6 +2,7 @@ import { appendFile, mkdir } from 'node:fs/promises'
 import { dirname, isAbsolute, resolve } from 'node:path'
 import { definePlugin } from '../../kernel/registry.js'
 import type { GenerateMiddleware } from '../../kernel/ports.js'
+import { resolveDataPath } from '../../lib/datadir.js'
 
 /**
  * TUNING SEAM #2b — records the EXACT request that reached the provider plus
@@ -15,8 +16,7 @@ export default definePlugin<GenerateMiddleware>({
   port: 'middleware',
   name: 'tuning-log',
   create: (options, deps) => {
-    const rawFile = typeof options['file'] === 'string' ? options['file'] : './.duanju/tuning.ndjson'
-    const file = isAbsolute(rawFile) ? rawFile : resolve(deps.cwd, rawFile)
+    const file = resolveDataPath(options['file'], deps.cwd, 'tuning.ndjson')
 
     const write = async (entry: Record<string, unknown>): Promise<void> => {
       try {

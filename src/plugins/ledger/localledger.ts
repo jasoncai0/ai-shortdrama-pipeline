@@ -1,8 +1,9 @@
 import { appendFile, mkdir, readFile } from 'node:fs/promises'
-import { isAbsolute, join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { budgetError } from '../../kernel/errors.js'
 import { definePlugin } from '../../kernel/registry.js'
 import type { Charge, Hold, LedgerPort } from '../../kernel/ports.js'
+import { resolveDataPath } from '../../lib/datadir.js'
 
 /**
  * Append-only local ledger with reserve → commit / refund.
@@ -21,8 +22,7 @@ export default definePlugin<LedgerPort>({
   port: 'ledger',
   name: 'localledger',
   create: async (options, deps) => {
-    const rawRoot = typeof options['root'] === 'string' ? options['root'] : './.duanju/ledger'
-    const root = isAbsolute(rawRoot) ? rawRoot : resolve(deps.cwd, rawRoot)
+    const root = resolveDataPath(options['root'], deps.cwd, 'ledger')
     const maxCredits = typeof options['maxCredits'] === 'number' ? options['maxCredits'] : 0
     const file = join(root, 'ledger.ndjson')
 

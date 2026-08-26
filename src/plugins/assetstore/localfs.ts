@@ -1,11 +1,12 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { isAbsolute, join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import { providerError } from '../../kernel/errors.js'
 import { contentId } from '../../kernel/idem.js'
 import { definePlugin } from '../../kernel/registry.js'
 import type { AssetMeta, AssetStorePort } from '../../kernel/ports.js'
 import type { AssetRef } from '../../kernel/types.js'
+import { resolveDataPath } from '../../lib/datadir.js'
 
 /**
  * Default asset store: content-addressed files on local disk.
@@ -44,8 +45,7 @@ export default definePlugin<AssetStorePort>({
   port: 'assetStore',
   name: 'localfs',
   create: (options, deps) => {
-    const rawRoot = typeof options['root'] === 'string' ? options['root'] : './.duanju/assets'
-    const root = isAbsolute(rawRoot) ? rawRoot : resolve(deps.cwd, rawRoot)
+    const root = resolveDataPath(options['root'], deps.cwd, 'assets')
 
     const pathFor = (id: string, mime: string): string => {
       const ext = EXT_BY_MIME[mime] ?? 'bin'

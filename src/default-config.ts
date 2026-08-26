@@ -22,8 +22,8 @@ export const DEFAULT_CONFIG = {
         maxSeconds: 15,
       },
     },
-    assetStore: { impl: 'localfs', options: { root: 'assets' } },
-    state: { impl: 'localjson', options: { root: 'state' } },
+    assetStore: { impl: 'localfs' },
+    state: { impl: 'localjson' },
     // Providers meter their own credits; a second set of books would only
     // ever disagree. Swap to 'localledger' for a spend ceiling + dedupe.
     ledger: { impl: 'noop', options: {} },
@@ -51,7 +51,7 @@ export const DEFAULT_CONFIG = {
     { impl: 'retry', options: { attempts: 3, baseDelayMs: 3000 } },
     { impl: 'camera-grammar', options: { appendClauses: ['oneDominantMove'] } },
     { impl: 'prompt-tune', options: { video: { suffix: 'steady camera, cinematic lighting' } } },
-    { impl: 'tuning-log', options: { file: 'tuning.ndjson' } },
+    { impl: 'tuning-log' },
   ],
   pipeline: [
     'plan',
