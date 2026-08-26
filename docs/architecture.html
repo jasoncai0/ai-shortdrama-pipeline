@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>duanju-poc 架构</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --line:#2d333b; --text:#e6e6e0; --dim:#9aa4b2;
+    --kernel:#2d5c8f; --port:#8f6a2d; --adapter:#3a4654; --stage:#3d6b4f;
+    --gate:#8f4a4a; --data:#6b5a8f; --accent:#d6b26a; --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  body{background:var(--bg);color:var(--text);font:15px/1.65 -apple-system,"PingFang SC","Noto Sans SC",sans-serif;margin:0;padding:2rem;}
+  main{max-width:1180px;margin:0 auto;}
+  h1{font-size:1.5rem;border-bottom:1px solid var(--line);padding-bottom:.6rem;}
+  h2{font-size:1.15rem;margin-top:3rem;color:var(--accent);}
+  p{color:var(--dim);max-width:72ch;}
+  .fig{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;overflow-x:auto;margin:1rem 0 .4rem;}
+  svg{display:block;min-width:900px;}
+  svg text{font-family:-apple-system,"PingFang SC",sans-serif;fill:var(--text);}
+  svg .t-sm{font-size:11px;fill:var(--dim);}
+  svg .t-md{font-size:13px;}
+  svg .t-lg{font-size:15px;font-weight:600;}
+  svg .t-mono{font-family:var(--mono);font-size:11.5px;}
+  svg .t-mono-dim{font-family:var(--mono);font-size:10.5px;fill:var(--dim);}
+  svg .arrow{stroke:var(--dim);stroke-width:1.4;fill:none;marker-end:url(#m);}
+  svg .arrow-strong{stroke:var(--accent);stroke-width:1.8;fill:none;marker-end:url(#ma);}
+  svg .dashed{stroke-dasharray:5 4;}
+  kbd{font-family:var(--mono);font-size:.85em;background:#22282f;border:1px solid var(--line);border-radius:4px;padding:0 .35em;}
+  .cap{font-size:.85rem;color:var(--dim);margin-bottom:2rem;}
+  footer{margin-top:3rem;color:var(--dim);font-size:.8rem;border-top:1px solid var(--line);padding-top:.8rem;}
+</style>
+</head>
+<body>
+<main>
+<h1>duanju-poc — 短剧生产管线架构</h1>
+<p>三张图：分层架构（内核只依赖端口、从不 import 任何 adapter）、数据链路（两条入口 → 十九个 stage 在 <kbd>Project</kbd> 上逐步累积字段）、单镜头生成时序（含中间件链与账本）。图与代码同源自动核对过 stage 依赖与产出字段。</p>
+
+<h2>一、分层架构 — Ports &amp; Adapters</h2>
+<div class="fig">
+<svg viewBox="0 0 1140 760" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="m" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9aa4b2"/></marker>
+    <marker id="ma" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#d6b26a"/></marker>
+  </defs>
+
+  <!-- CLI -->
+  <rect x="330" y="14" width="480" height="52" rx="8" fill="#22303e" stroke="#3a4a5c"/>
+  <text x="570" y="36" text-anchor="middle" class="t-lg">CLI · src/cli.ts</text>
+  <text x="570" y="54" text-anchor="middle" class="t-mono-dim">run · resume · stage · status · plugins   （断点续跑：stageState）</text>
+  <path class="arrow" d="M570,66 L570,92"/>
+
+  <!-- Kernel -->
+  <rect x="60" y="92" width="1020" height="132" rx="10" fill="#1b2c40" stroke="var(--kernel)" stroke-width="1.5"/>
+  <text x="84" y="116" class="t-lg">Kernel · src/kernel/ — 零 adapter import（组合根在 src/app.ts）</text>
+  <g class="t-md">
+    <rect x="84"  y="130" width="216" height="72" rx="6" fill="#22364e"/>
+    <text x="192" y="156" text-anchor="middle">Pipeline Runner</text>
+    <text x="192" y="176" text-anchor="middle" class="t-sm">顺序执行 · needs 依赖检查</text>
+    <text x="192" y="192" text-anchor="middle" class="t-sm">每步落盘 · gate 可暂停</text>
+    <rect x="316" y="130" width="216" height="72" rx="6" fill="#22364e"/>
+    <text x="424" y="156" text-anchor="middle">Plugin Registry</text>
+    <text x="424" y="176" text-anchor="middle" class="t-sm">配置 impl → 实例</text>
+    <text x="424" y="192" text-anchor="middle" class="t-sm">支持 npm:/file: 外部插件</text>
+    <rect x="548" y="130" width="216" height="72" rx="6" fill="#22364e"/>
+    <text x="656" y="156" text-anchor="middle">Domain Model</text>
+    <text x="656" y="176" text-anchor="middle" class="t-sm">Project / Shot / Character</text>
+    <text x="656" y="192" text-anchor="middle" class="t-sm">资产=一等实体，镜头存引用</text>
+    <rect x="780" y="130" width="216" height="72" rx="6" fill="#22364e"/>
+    <text x="888" y="156" text-anchor="middle">Middleware 链</text>
+    <text x="888" y="176" text-anchor="middle" class="t-sm">camera-grammar → prompt-tune</text>
+    <text x="888" y="192" text-anchor="middle" class="t-sm">→ retry → tuning-log</text>
+  </g>
+  <path class="arrow" d="M570,224 L570,252"/>
+
+  <!-- Ports -->
+  <rect x="60" y="252" width="1020" height="66" rx="10" fill="#2b2416" stroke="var(--port)" stroke-width="1.5"/>
+  <text x="84" y="276" class="t-lg">Ports（12 个端口接口 · src/kernel/ports.ts）</text>
+  <g class="t-mono" text-anchor="middle">
+    <text x="128" y="303">llm</text><text x="212" y="303">image</text><text x="296" y="303">video</text>
+    <text x="386" y="303">speech</text><text x="472" y="303">music</text><text x="556" y="303">textCard</text>
+    <text x="646" y="303">post</text><text x="730" y="303">export</text><text x="826" y="303">assetStore</text>
+    <text x="912" y="303">state</text><text x="988" y="303">ledger</text><text x="1058" y="303">promptStrategy…</text>
+  </g>
+
+  <!-- Adapters -->
+  <g>
+    <path class="arrow" d="M128,318 L128,346"/><path class="arrow" d="M212,318 L212,346"/>
+    <path class="arrow" d="M296,318 L296,346"/><path class="arrow" d="M386,318 L386,346"/>
+    <path class="arrow" d="M472,318 L472,346"/><path class="arrow" d="M556,318 L556,346"/>
+    <path class="arrow" d="M646,318 L646,346"/><path class="arrow" d="M730,318 L730,346"/>
+    <path class="arrow" d="M826,318 L826,346"/><path class="arrow" d="M912,318 L912,346"/>
+    <path class="arrow" d="M988,318 L988,346"/>
+  </g>
+  <rect x="60" y="346" width="1020" height="196" rx="10" fill="#151a21" stroke="var(--adapter)"/>
+  <text x="84" y="370" class="t-lg">Adapters · src/plugins/ — 每列可独立替换，stub 让全链路免费可测</text>
+  <g class="t-mono-dim">
+    <g transform="translate(84,384)">
+      <rect width="150" height="140" rx="6" fill="#1d232b"/>
+      <text x="10" y="20" class="t-mono">llm/</text>
+      <text x="10" y="40">deepseek</text><text x="10" y="57">openai-compat</text>
+      <text x="10" y="74" fill="#d6b26a">skill-inline ◄装饰器</text>
+      <text x="10" y="91" class="t-sm">（按 purpose 注入</text><text x="10" y="105" class="t-sm">  技能选段，懒加载）</text>
+      <text x="10" y="126">stub</text>
+    </g>
+    <g transform="translate(248,384)">
+      <rect width="128" height="140" rx="6" fill="#1d232b"/>
+      <text x="10" y="20" class="t-mono">image/ video/</text>
+      <text x="10" y="40">libtv ◄画布CLI</text>
+      <text x="10" y="57" class="t-sm">refs→image2image</text>
+      <text x="10" y="74" class="t-sm">首帧+身份参考</text>
+      <text x="10" y="91" class="t-sm">  →mixed2video</text>
+      <text x="10" y="126">stub</text>
+    </g>
+    <g transform="translate(390,384)">
+      <rect width="128" height="140" rx="6" fill="#1d232b"/>
+      <text x="10" y="20" class="t-mono">speech/ music/</text>
+      <text x="10" y="40">libtv (TTS/曲)</text>
+      <text x="10" y="57">local（自有曲库）</text>
+      <text x="10" y="74">openverse（搜索</text>
+      <text x="10" y="88" class="t-sm">  +授权过滤）</text>
+      <text x="10" y="108">multi（成本阶梯）</text>
+      <text x="10" y="126">stub</text>
+    </g>
+    <g transform="translate(532,384)">
+      <rect width="128" height="140" rx="6" fill="#1d232b"/>
+      <text x="10" y="20" class="t-mono">textCard/ post/</text>
+      <text x="10" y="40">pillow（排印，</text>
+      <text x="10" y="54" class="t-sm">  非AIGC，字必准）</text>
+      <text x="10" y="74">ffmpeg（混音/字幕</text>
+      <text x="10" y="88" class="t-sm">  /卡片合成/测时长）</text>
+      <text x="10" y="108">none / stub</text>
+    </g>
+    <g transform="translate(674,384)">
+      <rect width="128" height="140" rx="6" fill="#1d232b"/>
+      <text x="10" y="20" class="t-mono">export/ ledger/</text>
+      <text x="10" y="40">ffmpeg（重编码拼接）</text>
+      <text x="10" y="66">noop ◄默认</text>
+      <text x="10" y="83">localledger</text>
+      <text x="10" y="97" class="t-sm">  （预算+幂等去重）</text>
+    </g>
+    <g transform="translate(816,384)">
+      <rect width="128" height="140" rx="6" fill="#1d232b"/>
+      <text x="10" y="20" class="t-mono">assetStore/ state/</text>
+      <text x="10" y="40">localfs</text>
+      <text x="10" y="54" class="t-sm">  内容寻址sha256</text>
+      <text x="10" y="68" class="t-sm">  远端URL即刻落地</text>
+      <text x="10" y="90">localjson</text>
+      <text x="10" y="104" class="t-sm">  本地state=真源</text>
+      <text x="10" y="118" class="t-sm">  画布只是投影</text>
+    </g>
+    <g transform="translate(958,384)">
+      <rect width="122" height="140" rx="6" fill="#1d232b"/>
+      <text x="10" y="20" class="t-mono">promptStrategy/</text>
+      <text x="10" y="40">skill-anchored</text>
+      <text x="10" y="54" class="t-sm">  =template+profile</text>
+      <text x="10" y="74">template</text>
+      <text x="10" y="94" class="t-sm">模板/词表/profile</text>
+      <text x="10" y="108" class="t-sm">均为磁盘可编辑JSON</text>
+    </g>
+  </g>
+
+  <!-- config strip -->
+  <rect x="60" y="562" width="1020" height="60" rx="10" fill="#161b22" stroke="var(--line)"/>
+  <text x="84" y="586" class="t-md">一切装配来自一个文件：<tspan class="t-mono" fill="#d6b26a">duanju.config.json</tspan> — ports 选 impl、middleware 定顺序、pipeline 排 stage、budget/concurrency 限流</text>
+  <text x="84" y="608" class="t-mono-dim">可编辑数据（不重编译生效）: prompts/{image,video}.tmpl · prompts/profiles/*.json · prompts/camera/grammar.json · skills/inline-map.json</text>
+
+  <!-- stages strip -->
+  <rect x="60" y="640" width="1020" height="104" rx="10" fill="#182a1f" stroke="var(--stage)"/>
+  <text x="84" y="664" class="t-lg">Stage 也是插件（19 个）— 换流程=改 pipeline 数组，不改内核</text>
+  <text x="84" y="690" class="t-mono">import / import-script │ plan → assets → refs → [sheets|wardrobe|cover] → shots → camera-check</text>
+  <text x="84" y="712" class="t-mono">→ prompts → images → videos → [dub] → export → music → intro-cards → gate → subtitles</text>
+  <text x="84" y="734" class="t-mono-dim">gate 可多次复用（use:'gate' + 独立 id）；subtitles 代码强制要求闸门已通过才允许烧录</text>
+</svg>
+</div>
+<p class="cap">内核对 adapter 的隔离由组合根（src/app.ts）+ builtins 表保证；middleware 只包住 image/video/speech 三类付费生成调用。</p>
+
+<h2>二、数据链路 — 两条入口，Project 逐步累积</h2>
+<div class="fig">
+<svg viewBox="0 0 1140 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="m2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9aa4b2"/></marker>
+  </defs>
+  <style>.st{fill:#213829;stroke:#3d6b4f;} .stx{fill:#1d232b;stroke:#2d333b;} .lab{font-size:12.5px;} .out{font-family:var(--mono);font-size:10.5px;fill:#b9a06a;} .llm{font-size:10px;fill:#7aa2d6;} .ar{stroke:#9aa4b2;stroke-width:1.3;fill:none;marker-end:url(#m2);}</style>
+
+  <!-- entries -->
+  <rect x="70" y="20" width="300" height="88" rx="8" class="stx"/>
+  <text x="220" y="44" text-anchor="middle" class="t-md">入口 A：一句话创意</text>
+  <text x="220" y="66" text-anchor="middle" class="t-mono-dim">plan → assets → shots（LLM 生成）</text>
+  <text x="220" y="86" text-anchor="middle" class="llm">LLM: purpose=plan/assets/shots + skill-inline 注入</text>
+
+  <rect x="770" y="20" width="300" height="88" rx="8" class="stx"/>
+  <text x="920" y="44" text-anchor="middle" class="t-md">入口 B：现成剧本</text>
+  <text x="920" y="66" text-anchor="middle" class="t-mono-dim">import（结构化JSON，strict schema）</text>
+  <text x="920" y="86" text-anchor="middle" class="t-mono-dim">import-script（中文markdown剧本）</text>
+
+  <!-- converge -->
+  <path class="ar" d="M220,108 L220,150 L540,150 L540,170"/>
+  <path class="ar" d="M920,108 L920,150 L600,150 L600,170"/>
+  <rect x="410" y="170" width="320" height="64" rx="8" fill="#2a2438" stroke="#6b5a8f"/>
+  <text x="570" y="194" text-anchor="middle" class="t-md">Project（本地 state = 唯一真源）</text>
+  <text x="570" y="216" text-anchor="middle" class="out">plan · episodes · characters · scenes · props · shots</text>
+
+  <!-- asset column -->
+  <path class="ar" d="M480,234 L300,264"/>
+  <rect x="90" y="264" width="380" height="212" rx="8" class="st"/>
+  <text x="110" y="288" class="t-lg">资产线（needs: assets/refs）</text>
+  <text x="110" y="312" class="lab">refs　角色 <tspan class="t-mono">@base</tspan>（白底全身·身份真相源）＋场景图</text>
+  <text x="110" y="330" class="out">→ characters[].refImage · scenes[].refImage</text>
+  <text x="110" y="356" class="lab">wardrobe　主角多套服饰：@base为参考 + LOCKED/CHANGED</text>
+  <text x="110" y="374" class="out">→ characters[].wardrobe[]（label·description·image）</text>
+  <text x="110" y="400" class="lab">sheets　@sheet 表演板（只给人看，永不喂生成）</text>
+  <text x="110" y="418" class="out">→ characters[].sheetImage</text>
+  <text x="110" y="444" class="lab">cover　封面 3:4 · 标题逐字或不渲染</text>
+  <text x="110" y="462" class="out">→ cover · coverVariants[]</text>
+
+  <!-- shot column -->
+  <path class="ar" d="M660,234 L840,264"/>
+  <rect x="670" y="264" width="380" height="212" rx="8" class="st"/>
+  <text x="690" y="288" class="t-lg">镜头线（needs: shots）</text>
+  <text x="690" y="312" class="lab">camera-check　运镜 lint（零成本，付款前拦）</text>
+  <text x="690" y="330" class="out">→ 只报告，不改数据</text>
+  <text x="690" y="356" class="lab">prompts　纯函数编译：实体描述+镜头语言+profile锚点</text>
+  <text x="690" y="374" class="out">→ shots[].imagePrompt/videoPrompt/negativePrompt</text>
+  <text x="690" y="400" class="lab">images　每镜一张分镜图，refs=[base,服饰,场景]</text>
+  <text x="690" y="418" class="out">→ shots[].still</text>
+  <text x="690" y="444" class="lab">videos　首帧=still（构图）＋identityRefs=@base（身份）</text>
+  <text x="690" y="462" class="out">→ shots[].clip</text>
+
+  <!-- merge to post -->
+  <path class="ar" d="M280,476 L280,520 L540,520 L540,540"/>
+  <path class="ar" d="M860,476 L860,520 L600,520 L600,540"/>
+
+  <rect x="330" y="540" width="480" height="60" rx="8" class="st"/>
+  <text x="570" y="564" text-anchor="middle" class="t-md">dub（可选）　每镜配音，voicedClip 与 clip 并存</text>
+  <text x="570" y="586" text-anchor="middle" class="out">→ shots[].voicedClip　（下游一律经 renderedClip() 取画面）</text>
+  <path class="ar" d="M570,600 L570,620"/>
+
+  <rect x="330" y="620" width="480" height="52" rx="8" class="st"/>
+  <text x="570" y="642" text-anchor="middle" class="t-md">export　ffmpeg 重编码拼接（按集+镜序）</text>
+  <text x="570" y="662" text-anchor="middle" class="out">→ finalCut（无声画剪版）</text>
+  <path class="ar" d="M570,672 L570,692"/>
+
+  <rect x="330" y="692" width="480" height="52" rx="8" class="st"/>
+  <text x="570" y="713" text-anchor="middle" class="t-md">music　成本阶梯选曲（曲库→CC搜索→生成）+ 授权过滤 + 混音</text>
+  <text x="570" y="733" text-anchor="middle" class="out">→ music · scoredCut</text>
+  <path class="ar" d="M570,744 L570,762"/>
+
+  <rect x="330" y="762" width="480" height="52" rx="8" class="st"/>
+  <text x="570" y="783" text-anchor="middle" class="t-md">intro-cards　首次出场竖排名牌（Pillow排印+一趟overlay）</text>
+  <text x="570" y="803" text-anchor="middle" class="out">→ characters[].introCard · introCut</text>
+  <path class="ar" d="M570,814 L570,832"/>
+
+  <rect x="330" y="832" width="230" height="52" rx="8" fill="#38201f" stroke="#8f4a4a"/>
+  <text x="445" y="854" text-anchor="middle" class="t-md">gate-cut　人工确认画面</text>
+  <text x="445" y="872" text-anchor="middle" class="t-sm">awaiting-input → resume</text>
+  <path class="ar" d="M560,858 L580,858"/>
+  <rect x="580" y="832" width="230" height="52" rx="8" class="st"/>
+  <text x="695" y="854" text-anchor="middle" class="t-md">subtitles　实测时长排轴+烧录</text>
+  <text x="695" y="872" text-anchor="middle" class="out">→ subtitleFile · deliverable ★成片</text>
+</svg>
+</div>
+<p class="cap">关键约束沿线生效：分镜图与视频的身份都锚在 <kbd>@base</kbd>；字幕/名牌时轴用 ffprobe 实测（请求 4s 实际 4.096s，累计即漂移）；subtitles 被代码强制要求 gate 通过后才可执行 —— 烧字幕是唯一不可逆步骤。</p>
+
+<h2>三、交互时序 — 一个镜头的视频生成</h2>
+<div class="fig">
+<svg viewBox="0 0 1140 640" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="m3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9aa4b2"/></marker>
+    <marker id="m3a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#d6b26a"/></marker>
+  </defs>
+  <style>
+    .ll{stroke:#2d333b;stroke-width:1;} .head{fill:#22303e;stroke:#3a4a5c;}
+    .msg{stroke:#9aa4b2;stroke-width:1.3;fill:none;marker-end:url(#m3);}
+    .msga{stroke:#d6b26a;stroke-width:1.6;fill:none;marker-end:url(#m3a);}
+    .ret{stroke:#9aa4b2;stroke-width:1.1;stroke-dasharray:5 4;fill:none;marker-end:url(#m3);}
+    .mt{font-size:11.5px;} .act{fill:#2d5c8f;opacity:.55;}
+  </style>
+
+  <!-- lifelines -->
+  <g text-anchor="middle" class="t-md">
+    <rect x="30"  y="16" width="120" height="40" rx="6" class="head"/><text x="90"  y="41">videos stage</text>
+    <rect x="190" y="16" width="110" height="40" rx="6" class="head"/><text x="245" y="41">ledger</text>
+    <rect x="340" y="16" width="150" height="40" rx="6" class="head"/><text x="415" y="41">middleware 链</text>
+    <rect x="530" y="16" width="130" height="40" rx="6" class="head"/><text x="595" y="41">video/libtv</text>
+    <rect x="700" y="16" width="130" height="40" rx="6" class="head"/><text x="765" y="41">libtv CLI(画布)</text>
+    <rect x="870" y="16" width="120" height="40" rx="6" class="head"/><text x="930" y="41">assetStore</text>
+    <rect x="1010" y="16" width="100" height="40" rx="6" class="head"/><text x="1060" y="41">state</text>
+  </g>
+  <g class="ll">
+    <line x1="90" y1="56" x2="90" y2="616"/><line x1="245" y1="56" x2="245" y2="616"/>
+    <line x1="415" y1="56" x2="415" y2="616"/><line x1="595" y1="56" x2="595" y2="616"/>
+    <line x1="765" y1="56" x2="765" y2="616"/><line x1="930" y1="56" x2="930" y2="616"/>
+    <line x1="1060" y1="56" x2="1060" y2="616"/>
+  </g>
+
+  <g class="mt">
+    <!-- idem + reserve -->
+    <text x="98" y="82">idem = hash(stage, shotId, prompt, mode, refs…)</text>
+    <path class="msg" d="M90,96 L241,96"/><text x="110" y="92">reserve(idem, cost)</text>
+    <path class="ret" d="M241,112 L94,112"/><text x="110" y="126" class="t-sm">alreadySettled? → 跳过不重付</text>
+
+    <!-- generate through middleware -->
+    <path class="msga" d="M90,148 L411,148"/>
+    <text x="110" y="144">generate({mode, prompt, firstFrame=still, identityRefs=[@base,服饰]})</text>
+    <rect x="410" y="156" width="10" height="120" class="act"/>
+    <text x="428" y="172">① camera-grammar：运镜简写→物理措辞（"dolly-in"→恒速前移+视差连续）</text>
+    <text x="428" y="190">② prompt-tune：房风格后缀/参数覆盖</text>
+    <text x="428" y="208">③ retry：瞬时失败指数退避</text>
+    <text x="428" y="226">④ tuning-log：落盘真正下发的 prompt+refs（NDJSON，可两跑diff）</text>
+    <path class="msg" d="M420,244 L591,244"/><text x="440" y="240">改写后的请求</text>
+
+    <!-- adapter -->
+    <rect x="590" y="252" width="10" height="150" class="act"/>
+    <text x="608" y="268">首帧+身份参考并存 → 提升 modeType=mixed2video（全能参考）</text>
+    <text x="608" y="284">canvas 节点名去重；秒数夹取到模型区间</text>
+    <path class="msg" d="M600,300 L761,300"/>
+    <text x="620" y="296" class="t-mono">libtv node create -t video … --left still --left base --run</text>
+    <rect x="760" y="308" width="10" height="60" class="act"/>
+    <text x="778" y="326">--run 同步阻塞·内部自轮询（不外包超时）</text>
+    <text x="778" y="344">重名节点：删旧重建</text>
+    <path class="ret" d="M761,368 L604,368"/><text x="620" y="384" class="t-sm">终态JSON（末个平衡值）status=2 · data.url[CDN]</text>
+
+    <!-- ingest -->
+    <path class="msg" d="M595,404 L926,404"/><text x="620" y="400">ingest(cdnUrl) —— 即刻收归本地</text>
+    <rect x="925" y="412" width="10" height="40" class="act"/>
+    <text x="943" y="430">sha256 内容寻址落盘</text>
+    <path class="ret" d="M926,452 L599,452"/><text x="620" y="468" class="t-sm">AssetRef{file://…, meta.libtvNodeName}</text>
+    <path class="ret" d="M591,486 L94,486"/><text x="110" y="482" class="t-sm">clip AssetRef</text>
+
+    <!-- commit + save -->
+    <path class="msg" d="M90,510 L241,510"/><text x="110" y="506">commit(idem)　│失败则 refund，不拖累其他镜头</text>
+    <path class="msg" d="M90,542 L1056,542"/><text x="110" y="538">save(project)　—— shots[i].clip 写回，崩溃最多损失一个 stage</text>
+
+    <text x="90" y="586" class="t-sm">▸ 并发受 min(config.concurrency.videos, adapter.caps.maxConcurrency) 限制；mapPool 单镜失败不中断批次</text>
+    <text x="90" y="606" class="t-sm">▸ 同一 idem 重跑：ledger 短路（localledger）或 stage 依 shots[].clip 已存在直接跳过 —— resume 免费</text>
+  </g>
+</svg>
+</div>
+<p class="cap">同构时序适用于 images（无 mode 提升）与 speech/dub（TTS 后 mixVoice 每镜混音）；music 走 find→licence 过滤→LLM 选曲→mixMusic。</p>
+
+<footer>生成于 duanju-poc · 与代码同步核对：19 stages / 12 ports / 4 middleware（src/plugins/builtins.ts）。查看方式：<kbd>open docs/architecture.html</kbd></footer>
+</main>
+</body>
+</html>

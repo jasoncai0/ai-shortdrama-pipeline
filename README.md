@@ -19,6 +19,10 @@ node dist/cli.js run --config duanju.stub.json --idea "都市悬疑：外卖员�
 
 ## Architecture
 
+> 可视化版本（架构图 / 数据链路图 / 交互时序图，内联 SVG）：
+> [docs/architecture.html](docs/architecture.html) — `open docs/architecture.html`
+
+
 The kernel depends only on port interfaces. It never imports an adapter.
 
 ```
