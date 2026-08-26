@@ -43,5 +43,11 @@
     "panelColour": "#0C0E12",
     "panelOpacity": 0.55,
     "widthRatio": 0.2
+  },
+  "characterWardrobe": {
+    "spec": "one production reference image of the same character in a different outfit, clean full-body figure on pure white or off-white cutout background, complete from hair top to footwear bottom, single consistent camera and perspective and lighting and ground line, identical framing to the base reference",
+    "locked": "the attached reference image is the identity: keep exactly the same face, facial structure, eyes, complexion, hairstyle and hair length, apparent age, height, build and body proportions, and the same rendering style and realism",
+    "changed": "only the garments change — silhouette, layers, fabric, colour and accessories",
+    "negatives": "different person, different face, face swap, changed facial structure, changed hairstyle, changed hair colour, changed age, changed body type, different actor, twin, sibling"
   }
 }

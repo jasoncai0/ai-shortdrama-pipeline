@@ -1,6 +1,6 @@
 import { idempotencyKey } from '../../kernel/idem.js'
 import { definePlugin } from '../../kernel/registry.js'
-import { findCharacter, findScene } from '../../kernel/types.js'
+import { findCharacter, findLook, findScene } from '../../kernel/types.js'
 import { mapPool } from '../../lib/pool.js'
 import { billedGenerate, summarize } from './shared.js'
 import type { StagePort } from '../../kernel/ports.js'
@@ -109,9 +109,15 @@ export default definePlugin<StagePort>({
  * are the most valuable anchors; the scene comes last.
  */
 const referencesFor = (shot: Shot, project: Project, budget: number): readonly AssetRef[] => {
-  const characterRefs = shot.characterIds
-    .map((id) => findCharacter(project, id)?.refImage)
-    .filter((ref): ref is AssetRef => Boolean(ref))
+  // Base first, then the outfit. The base is the identity and must survive the
+  // reference budget; the look only says what they are wearing, and a shot
+  // that names one is showing that costume, not the default.
+  const characterRefs = shot.characterIds.flatMap((id) => {
+    const character = findCharacter(project, id)
+    if (!character?.refImage) return []
+    const look = findLook(character, shot.wardrobeId)
+    return look?.image ? [character.refImage, look.image] : [character.refImage]
+  })
 
   const sceneRef = shot.sceneId ? findScene(project, shot.sceneId)?.refImage : undefined
   const all = sceneRef ? [...characterRefs, sceneRef] : characterRefs

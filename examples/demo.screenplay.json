@@ -15,12 +15,31 @@
     {
       "name": "林默",
       "appearance": "late-20s Chinese male food courier, yellow rain jacket, buzz cut",
-      "epithet": "外卖员 · 目击者"
+      "epithet": "外卖员 · 目击者",
+      "billing": "lead",
+      "wardrobe": [
+        {
+          "label": "送餐服",
+          "description": "yellow waterproof courier jacket over a grey hoodie, black cargo trousers, worn trainers, insulated delivery backpack",
+          "occasion": "日常送单"
+        },
+        {
+          "label": "便服",
+          "description": "faded navy sweatshirt, loose dark jeans, cheap canvas shoes, no bag",
+          "occasion": "回到出租屋"
+        },
+        {
+          "label": "雨夜",
+          "description": "translucent plastic rain poncho over the courier jacket, hood up, soaked trouser cuffs",
+          "occasion": "暴雨中的后巷"
+        }
+      ]
     },
     {
       "name": "黑衣人",
       "appearance": "tall figure in a long black coat, leather gloves, hooded",
-      "epithet": "不该被看见的人"
+      "epithet": "不该被看见的人",
+      "billing": "supporting"
     }
   ],
   "scenes": [
@@ -55,7 +74,8 @@
           "scene": "Neon Alley",
           "props": [
             "Delivery Box"
-          ]
+          ],
+          "wardrobe": "雨夜"
         },
         {
           "plotDescription": "extreme close-up of the courier's eyes widening",
@@ -70,7 +90,8 @@
             "林默"
           ],
           "scene": "Neon Alley",
-          "props": []
+          "props": [],
+          "wardrobe": "雨夜"
         },
         {
           "plotDescription": "the stranger turns and looks straight down the alley",

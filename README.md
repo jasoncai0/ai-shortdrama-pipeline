@@ -46,7 +46,7 @@ CLI ──► Kernel (pipeline runner · registry · domain model)
 | `textCard` | `pillow`, `stub` | pillow |
 | `promptStrategy` | `template`, `skill-anchored` | skill-anchored |
 | `middleware` | `retry`, `prompt-tune`, `camera-grammar`, `tuning-log` | all four |
-| `stage` | `import`, `import-script`, `plan`, `assets`, `refs`, `sheets`, `shots`, `camera-check`, `prompts`, `images`, `videos`, `dub`, `cover`, `music`, `intro-cards`, `subtitles`, `gate`, `export` | — |
+| `stage` | `import`, `import-script`, `plan`, `assets`, `refs`, `sheets`, `shots`, `camera-check`, `prompts`, `images`, `videos`, `wardrobe`, `dub`, `cover`, `music`, `intro-cards`, `subtitles`, `gate`, `export` | — |
 
 External plugins: `"impl": "npm:my-plugin"` or `"impl": "file:./my-plugin.js"`.
 Any module default-exporting a `definePlugin({...})` works.
@@ -261,6 +261,46 @@ looks like "the search broke".
 `music/local` reads an optional `<track>.json` sidecar for title, tags, runtime
 and licence; without one it ranks by filename tag overlap, which is why
 `tense-strings-loop.mp3` beats `track_03.mp3`.
+
+### Wardrobe variants: many outfits, one face
+
+Leads get several costumes; everyone keeps one identity. The two requirements
+pull against each other, and the resolution is the source skill's variant rule
+— a variant is only safe when the brief **states which variables move and
+which are pinned**.
+
+So each costume generation carries three things:
+
+- the confirmed **`@base` as a reference image**, which puts the libtv adapter
+  into image-to-image — this is what makes it a costume change rather than a
+  new character;
+- a **`LOCKED`** clause naming face, facial structure, complexion, hairstyle,
+  age, height and build;
+- a **`CHANGED`** clause naming garments only.
+
+Plus negatives aimed at the specific failure: `different person, face swap,
+changed hairstyle, changed age, different actor, twin, sibling`. All of it
+lives in the profile's `characterWardrobe` block, editable without a rebuild.
+
+The outfits come from the story. A screenplay that lists them is used verbatim
+and costs no LLM call; otherwise the plan and episode synopses are read for
+what the character is actually seen wearing — inventing outfits from nothing
+produces a lookbook, not a costume plan.
+
+Two checks run before anything is paid for, because both failures are invisible
+until you compare images side by side:
+
+- **Identity leakage** — a look describing 「圆脸」 or `short hair` is competing
+  with the reference image, and the reference does not always win.
+- **Near-duplicates** — three outfits sharing most of their vocabulary produce
+  three images sharing most of their pixels.
+
+Leads only, decided by explicit config → story billing → top of the cast, and
+the fallback announces itself rather than quietly spending on the wrong person.
+
+A shot naming a look gets `[base, look, scene]` as its references — base first,
+because the reference budget is finite and identity has to survive it. Shots
+that name none get the default costume.
 
 ### Character intro cards are typeset, not generated
 

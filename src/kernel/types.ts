@@ -32,12 +32,40 @@ export interface ProjectPlan {
   readonly styleGuide: string
 }
 
+/**
+ * One outfit for a character.
+ *
+ * The description covers the garments and nothing else. Face, build, hair and
+ * age live on the Character and must not be restated here — a look that
+ * re-describes the person is a look that will drift into a different person.
+ */
+export interface WardrobeLook {
+  readonly id: string
+  /** How the production refers to it: 常服, 夜行衣, 婚服. */
+  readonly label: string
+  /** English description of the garments, materials and silhouette only. */
+  readonly description: string
+  /** When the story puts them in it — used to assign looks to shots. */
+  readonly occasion?: string
+  readonly image?: AssetRef
+}
+
 export interface Character {
   readonly id: string
   readonly name: string
   /** Appearance / wardrobe / hair / makeup — fed verbatim into prompts. */
   readonly appearance: string
   readonly personality?: string
+  /**
+   * Leads get wardrobe variants; extras do not. Generating four outfits for a
+   * character with two lines is money spent on something nobody will notice.
+   */
+  readonly billing?: 'lead' | 'supporting' | 'extra'
+  /**
+   * Outfit variants, all derived from the confirmed `@base` so the face, build
+   * and styling stay put while the clothes change.
+   */
+  readonly wardrobe?: readonly WardrobeLook[]
   /**
    * One-line identity for the intro card — 「外卖员 · 目击者」, not a biography.
    * Shown once, read in about a second, so it has to earn every character.
@@ -113,6 +141,8 @@ export interface Shot {
   readonly dialogue?: string
   /** References, not copies. */
   readonly characterIds: readonly string[]
+  /** Which wardrobe look this shot shows, by `WardrobeLook.id`. */
+  readonly wardrobeId?: string
   readonly sceneId?: string
   readonly propIds: readonly string[]
   /** Compiled by the prompt strategy; may be hand-overridden. */
@@ -224,6 +254,12 @@ export const findCharacter = (
   project: Project,
   id: string,
 ): Character | undefined => project.characters.find((c) => c.id === id)
+
+export const findLook = (
+  character: Character,
+  id: string | undefined,
+): WardrobeLook | undefined =>
+  id ? character.wardrobe?.find((w) => w.id === id) : undefined
 
 export const findScene = (
   project: Project,

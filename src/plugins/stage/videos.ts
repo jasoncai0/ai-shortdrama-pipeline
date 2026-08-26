@@ -1,6 +1,6 @@
 import { idempotencyKey } from '../../kernel/idem.js'
 import { definePlugin } from '../../kernel/registry.js'
-import { findCharacter } from '../../kernel/types.js'
+import { findCharacter, findLook } from '../../kernel/types.js'
 import { mapPool } from '../../lib/pool.js'
 import { billedGenerate, summarize } from './shared.js'
 import type { StagePort, VideoMode } from '../../kernel/ports.js'
@@ -61,9 +61,14 @@ export default definePlugin<StagePort>({
         // The still fixes composition; it does NOT carry identity. A face can
         // drift or be cropped out of frame zero, so the character's confirmed
         // @base rides along separately and keeps the person the same person.
-        const identityRefs = shot.characterIds
-          .map((id) => findCharacter(project, id)?.refImage)
-          .filter((ref): ref is NonNullable<typeof ref> => Boolean(ref))
+        const identityRefs = shot.characterIds.flatMap((id) => {
+          const character = findCharacter(project, id)
+          if (!character?.refImage) return []
+          // The costume image carries the same face plus the right clothes, so
+          // it anchors both when the shot names a look.
+          const look = findLook(character, shot.wardrobeId)
+          return look?.image ? [character.refImage, look.image] : [character.refImage]
+        })
 
         const key = idempotencyKey('videos', shot.id, {
           prompt,

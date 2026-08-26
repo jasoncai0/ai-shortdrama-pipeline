@@ -48,6 +48,20 @@ export const profileSchema = z.object({
   characterBase: assetSpec.optional(),
   characterSheet: assetSpec.optional(),
   location: assetSpec.optional(),
+  /**
+   * Wardrobe variants. `locked` and `changed` are the whole mechanism: the
+   * source skill's Type E rule is that a variant sheet must state which
+   * variables move and which are pinned, and stating it is what keeps the
+   * face from moving with the clothes.
+   */
+  characterWardrobe: z
+    .object({
+      spec: z.string().optional(),
+      locked: z.string().optional(),
+      changed: z.string().optional(),
+      negatives: z.string().optional(),
+    })
+    .optional(),
   cover: assetSpec.optional(),
   /**
    * Styling for the typeset intro cards. It lives beside the image anchors so

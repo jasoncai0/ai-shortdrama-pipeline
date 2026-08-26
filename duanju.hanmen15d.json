@@ -71,6 +71,12 @@
     "music": {
       "impl": "stub",
       "options": {}
+    },
+    "textCard": {
+      "impl": "pillow",
+      "options": {
+        "python": "python3"
+      }
     }
   },
   "middleware": [
@@ -289,6 +295,21 @@
       "options": {
         "label": "cut",
         "prompt": "画面确认后烧字幕？"
+      }
+    },
+    {
+      "id": "intro-cards",
+      "needs": [
+        "export"
+      ],
+      "options": {
+        "profile": "photoreal-drama",
+        "holdSeconds": 2.6,
+        "delaySeconds": 0.4,
+        "side": "left",
+        "marginPx": 48,
+        "fadeSeconds": 0.35,
+        "maxConcurrent": 1
       }
     },
     {

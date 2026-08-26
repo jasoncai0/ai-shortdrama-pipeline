@@ -31,6 +31,10 @@ const assetsSchema = z.object({
           .min(1)
           .describe('English visual description: face, hair, wardrobe, age, build'),
         personality: z.string().optional(),
+        billing: z
+          .enum(['lead', 'supporting', 'extra'])
+          .optional()
+          .describe('主角 lead / 配角 supporting / 龙套 extra；只有 lead 会做多套服装'),
         epithet: z
           .string()
           .optional()
@@ -92,7 +96,7 @@ export default definePlugin<StagePort>({
               `视觉风格：${plan.styleGuide}`,
               '',
               `拆解为 ${episodeCount} 集，并列出全部人物、场景、道具。`,
-              'JSON 字段：episodes[{title,synopsis}], characters[{name,appearance,personality,epithet}], scenes[{name,visualDescription}], props[{name,description}]',
+              'JSON 字段：episodes[{title,synopsis}], characters[{name,appearance,personality,epithet,billing}], scenes[{name,visualDescription}], props[{name,description}]',
             ].join('\n'),
           },
         ],
@@ -113,6 +117,7 @@ export default definePlugin<StagePort>({
         appearance: c.appearance,
         personality: c.personality,
         epithet: c.epithet,
+        billing: c.billing,
       }))
 
       const scenes: readonly Scene[] = result.data.scenes.map((s, index) => ({

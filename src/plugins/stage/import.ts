@@ -42,6 +42,19 @@ const screenplaySchema = z.object({
         personality: z.string().optional(),
         /** One-line identity for the intro card. */
         epithet: z.string().optional(),
+        billing: z.enum(['lead', 'supporting', 'extra']).optional(),
+        /** Outfits the writer already specified; the wardrobe stage uses these verbatim. */
+        wardrobe: z
+          .array(
+            z
+              .object({
+                label: z.string().min(1),
+                description: z.string().min(1),
+                occasion: z.string().optional(),
+              })
+              .strict(),
+          )
+          .optional(),
       }).strict(),
     )
     .min(1),
@@ -69,6 +82,8 @@ const screenplaySchema = z.object({
               characters: z.array(z.string()).default([]),
               scene: z.string().optional(),
               props: z.array(z.string()).default([]),
+              /** Wardrobe look label worn in this shot. */
+              wardrobe: z.string().optional(),
             }).strict(),
           )
           .min(1),
@@ -132,6 +147,8 @@ export default definePlugin<StagePort>({
         appearance: c.appearance,
         personality: c.personality,
         epithet: c.epithet,
+        billing: c.billing,
+        wardrobe: c.wardrobe?.map((w, wi) => ({ id: `w${wi + 1}`, ...w })),
       }))
       const scenes: readonly Scene[] = script.scenes.map((s, i) => ({
         id: `sc${i + 1}`,
@@ -163,6 +180,23 @@ export default definePlugin<StagePort>({
           const characterIds = raw.characters
             .map((n) => characterByName.get(n))
             .filter((id): id is string => Boolean(id))
+          // A shot's wardrobe is written as a label; resolve it against the
+          // looks its characters actually have, and complain when it matches
+          // none — a typo here silently reverts the shot to default costume.
+          let wardrobeId: string | undefined
+          if (raw.wardrobe) {
+            const owner = characters.find(
+              (c) =>
+                characterIds.includes(c.id) && c.wardrobe?.some((w) => w.label === raw.wardrobe),
+            )
+            wardrobeId = owner?.wardrobe?.find((w) => w.label === raw.wardrobe)?.id
+            if (!wardrobeId) {
+              deps.log.warn(
+                `import: ${episodeId} shot ${shotIndex + 1} names wardrobe "${raw.wardrobe}", which none of its characters has`,
+              )
+            }
+          }
+
           const unknownCharacters = raw.characters.filter((n) => !characterByName.has(n))
           if (unknownCharacters.length > 0) {
             deps.log.warn(
@@ -189,6 +223,7 @@ export default definePlugin<StagePort>({
             audioEffects: raw.audioEffects,
             dialogue: raw.dialogue,
             characterIds,
+            wardrobeId,
             sceneId: raw.scene ? sceneByName.get(raw.scene) : undefined,
             propIds: raw.props
               .map((n) => propByName.get(n))

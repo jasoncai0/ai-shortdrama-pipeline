@@ -49,6 +49,12 @@
         "skill": "smart-title-sequence",
         "includeBody": true
       }
+    ],
+    "wardrobe": [
+      {
+        "skill": "character-sheet-design",
+        "includeBody": true
+      }
     ]
   }
 }
