@@ -201,8 +201,42 @@ const findSilentHost = (
 }
 
 /** Atmosphere of the place, no people — a shot that cannot contradict anything. */
+/**
+ * Words that mean the destination is under a roof.
+ *
+ * Deliberately a small list of the words a Chinese screenplay actually uses for
+ * a room; anything unmatched is treated as exterior, which is the safe default
+ * (a sky over an exterior is never wrong).
+ */
+const INTERIOR_WORDS = [
+  '堂',
+  '殿',
+  '室',
+  '房',
+  '厅',
+  '楼',
+  '屋',
+  '内',
+  '书斋',
+  '灶',
+  '寺内',
+]
+
+const isInterior = (sceneName: string): boolean =>
+  INTERIOR_WORDS.some((word) => sceneName.includes(word))
+
+/**
+ * A transition is the *approach* to the next scene, not a look at it.
+ *
+ * Cutting to the empty room you are about to walk into reads as a continuity
+ * mistake rather than a transition, so an interior destination gets the sky and
+ * eaves above it and an exterior gets the wide landscape — in both cases the
+ * shot the audience would see on the way there.
+ */
 export const transitionDescription = (beat: PacingBeat): string =>
-  `${beat.sceneName}的空镜过渡, 无人物, ${beat.timeOfDay}的天光与环境细节`
+  isInterior(beat.sceneName)
+    ? `${beat.sceneName}屋外的空镜过渡, 无人物, 屋檐飞角与其上的天空, ${beat.timeOfDay}的天光`
+    : `${beat.sceneName}的空镜过渡, 无人物, 开阔的天空与远景, ${beat.timeOfDay}的天光`
 
 export const narrationDescription = (beat: PacingBeat): string =>
   `${beat.sceneName}的空镜留白, 无人物, ${beat.timeOfDay}的光线与静物`

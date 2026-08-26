@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { paceBeats, type PacingBeat } from '../src/lib/pacing.js'
+import { paceBeats, transitionDescription, type PacingBeat } from '../src/lib/pacing.js'
 
 const beat = (over: Partial<PacingBeat> = {}): PacingBeat => ({
   sceneName: '云隐寺大殿',
@@ -200,5 +200,29 @@ describe('clause split fallback', () => {
   test('drops nothing but whitespace', async () => {
     const { clauseSplit } = await import('../src/plugins/stage/dub.js')
     expect(clauseSplit('  甲, 乙。  ')).toEqual(['甲,', '乙。'])
+  })
+})
+
+describe('transition inserts are the approach, not the destination', () => {
+  const beat = (sceneName: string) =>
+    ({ sceneName, timeOfDay: '日' }) as PacingBeat
+
+  test('an interior gets the sky above it — cutting to the empty room reads as a jump', () => {
+    const text = transitionDescription(beat('祖堂'))
+
+    expect(text).toContain('屋外')
+    expect(text).toContain('天空')
+  })
+
+  test('an exterior gets the wide sky', () => {
+    expect(transitionDescription(beat('明镜湖畔山道'))).toContain('开阔的天空')
+  })
+
+  test('an unrecognised place is treated as exterior, which is never wrong', () => {
+    expect(transitionDescription(beat('某处'))).toContain('开阔的天空')
+  })
+
+  test('no transition insert ever contains a character', () => {
+    expect(transitionDescription(beat('西楼餐厅'))).toContain('无人物')
   })
 })
