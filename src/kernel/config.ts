@@ -48,6 +48,7 @@ export const configSchema = z.object({
     speech: portBinding.default({ impl: 'stub', options: {} }),
     music: portBinding.default({ impl: 'stub', options: {} }),
     post: portBinding.default({ impl: 'ffmpeg', options: {} }),
+    textCard: portBinding.default({ impl: 'pillow', options: {} }),
     promptStrategy: portBinding,
   }),
   /** Ordered; outermost first. Applied to every image/video generate call. */

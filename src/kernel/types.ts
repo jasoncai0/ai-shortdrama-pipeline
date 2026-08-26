@@ -39,6 +39,13 @@ export interface Character {
   readonly appearance: string
   readonly personality?: string
   /**
+   * One-line identity for the intro card — 「外卖员 · 目击者」, not a biography.
+   * Shown once, read in about a second, so it has to earn every character.
+   */
+  readonly epithet?: string
+  /** Rendered intro card (PNG with alpha), kept so a re-run does not re-render. */
+  readonly introCard?: AssetRef
+  /**
    * `@base` — the identity truth source: white-background full-body reference.
    * This is the ONLY character image fed to keyframes and image-to-video.
    */
@@ -190,6 +197,8 @@ export interface Project {
   readonly musicCandidates?: readonly MusicTrack[]
   /** finalCut with the score mixed under it. */
   readonly scoredCut?: AssetRef
+  /** The cut with character intro cards composited in. */
+  readonly introCut?: AssetRef
   /** Sidecar .srt built from dialogue and measured clip durations. */
   readonly subtitleFile?: AssetRef
   /** The thing you actually publish: confirmed cut + music + subtitles. */

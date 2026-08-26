@@ -60,8 +60,8 @@ export default definePlugin<StagePort>({
         log.warn('subtitles: confirmation gate disabled — burning into an unapproved cut')
       }
 
-      // Subtitle whatever was approved: the scored cut when there is one.
-      const target = project.scoredCut ?? project.finalCut
+      // Subtitle the most finished version of the picture there is.
+      const target = project.introCut ?? project.scoredCut ?? project.finalCut
       if (!target) {
         throw stateError('subtitles stage requires a finished cut.', 'Run "export" first.')
       }

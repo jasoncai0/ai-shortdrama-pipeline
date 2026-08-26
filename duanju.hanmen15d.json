@@ -42,8 +42,7 @@
     "export": {
       "impl": "ffmpeg",
       "options": {
-        "fps": 24,
-        "crf": 20
+        "bin": "/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg"
       }
     },
     "promptStrategy": {
@@ -64,7 +63,10 @@
     },
     "post": {
       "impl": "ffmpeg",
-      "options": {}
+      "options": {
+        "bin": "/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg",
+        "probeBin": "/opt/homebrew/opt/ffmpeg-full/bin/ffprobe"
+      }
     },
     "music": {
       "impl": "stub",
@@ -276,7 +278,8 @@
           "陆薇蕤": "female-tianmei",
           "陆鸿": "male-qn-badao",
           "真如长老": "audiobook_male_2"
-        }
+        },
+        "splitOnFailure": true
       }
     },
     "export",
@@ -293,8 +296,9 @@
       "options": {
         "confirmGate": "gate-cut",
         "burn": true,
-        "fontSize": 18,
-        "marginVertical": 70
+        "fontSize": 9,
+        "marginVertical": 40,
+        "fontName": "Heiti SC"
       }
     }
   ],

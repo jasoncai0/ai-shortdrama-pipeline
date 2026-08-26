@@ -38,6 +38,44 @@ export default definePlugin<PostPort>({
     return {
       name: 'ffmpeg',
 
+      probeDuration: async (asset, store) => probeSeconds(await store.localPath(asset)),
+
+      concatAudio: async (tracks, store, projectId) => {
+        if (tracks.length === 0) {
+          throw providerError('concatAudio: nothing to join.')
+        }
+        const paths = await Promise.all(tracks.map((t) => store.localPath(t)))
+        const dir = await mkdtemp(join(tmpdir(), 'duanju-vjoin-'))
+        const out = join(dir, 'voice.mp3')
+
+        // Re-encode rather than stream-copy: the takes come back as separate
+        // MP3s whose frame boundaries do not line up, and a copy-concat of
+        // those plays back with a click at every seam.
+        const inputs = paths.flatMap((p) => ['-i', p])
+        const filter = `${paths.map((_p, i) => `[${i}:a]`).join('')}concat=n=${paths.length}:v=0:a=1[a]`
+
+        await runOrThrow(
+          bin,
+          [
+            '-y', '-hide_banner', '-loglevel', 'error',
+            ...inputs,
+            '-filter_complex', filter,
+            '-map', '[a]',
+            '-c:a', 'libmp3lame', '-b:a', '160k',
+            out,
+          ],
+          { timeoutMs: 120_000, log: deps.log },
+        )
+
+        const bytes = new Uint8Array(await readFile(out))
+        return store.put(bytes, {
+          kind: 'other',
+          mime: 'audio/mpeg',
+          projectId,
+          label: `voice-joined-${tracks.length}`,
+        })
+      },
+
       mixVoice: async (clip, voice, opts, store, projectId) => {
         const clipPath = await store.localPath(clip)
         const voicePath = await store.localPath(voice)
@@ -92,6 +130,67 @@ export default definePlugin<PostPort>({
           projectId,
           label: `${clip.id}-voiced`,
           extra: { voicedFrom: clip.id, voice: voice.id },
+        })
+      },
+
+      overlayCards: async (video, cards, store, projectId) => {
+        if (cards.length === 0) return video
+        const videoPath = await store.localPath(video)
+        const dir = await mkdtemp(join(tmpdir(), 'duanju-cards-'))
+        const out = join(dir, 'carded.mp4')
+        const runtime = await probeSeconds(videoPath)
+
+        // One pass for every card. Compositing them one at a time would
+        // re-encode the picture once per character, and generation loss on a
+        // 9:16 cut is visible by the third pass.
+        const inputs: string[] = ['-i', videoPath]
+        const steps: string[] = []
+        let last = '[0:v]'
+
+        for (const [i, card] of cards.entries()) {
+          const path = await store.localPath(card.image)
+          // A still image is one frame; without -loop it has already ended by
+          // the time the overlay window opens, and nothing appears.
+          inputs.push('-loop', '1', '-framerate', '25', '-t', String(runtime), '-i', path)
+
+          const fadeOut = Math.max(card.startSeconds, card.endSeconds - card.fadeSeconds)
+          steps.push(
+            `[${i + 1}:v]format=rgba,` +
+              `fade=t=in:st=${card.startSeconds.toFixed(3)}:d=${card.fadeSeconds}:alpha=1,` +
+              `fade=t=out:st=${fadeOut.toFixed(3)}:d=${card.fadeSeconds}:alpha=1[c${i}]`,
+          )
+          const x = card.side === 'left' ? String(card.marginPx) : `W-w-${card.marginPx}`
+          const label = i === cards.length - 1 ? '[v]' : `[s${i}]`
+          steps.push(
+            `${last}[c${i}]overlay=x=${x}:y=(H-h)/2:` +
+              `enable='between(t,${card.startSeconds.toFixed(3)},${card.endSeconds.toFixed(3)})'${label}`,
+          )
+          last = `[s${i}]`
+        }
+
+        deps.log.info(`post/ffmpeg: compositing ${cards.length} intro card(s) in one pass`)
+
+        await runOrThrow(
+          bin,
+          [
+            '-y', '-hide_banner', '-loglevel', 'error',
+            ...inputs,
+            '-filter_complex', steps.join(';'),
+            '-map', '[v]',
+            ...((await streamExists(probeBin, videoPath, 'a')) ? ['-map', '0:a'] : []),
+            '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p',
+            '-c:a', 'copy',
+            '-t', String(runtime),
+            out,
+          ],
+          { timeoutMs: 0, log: deps.log },
+        )
+
+        return store.put(new Uint8Array(await readFile(out)), {
+          kind: 'final',
+          mime: 'video/mp4',
+          projectId,
+          label: 'intro-carded-cut',
         })
       },
 

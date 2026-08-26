@@ -2,7 +2,6 @@
   "id": "photoreal-drama",
   "label": "AI photoreal vertical micro-drama",
   "source": "skill:real-short-drama §0.1 四 (Prompt 编译身份锁定), 五 (禁止输出倾向); skill:character-sheet-design §2/§9; skill:video-storyboard (continuity + negatives)",
-
   "anchors": {
     "global": "AI-generated photorealistic human vertical micro-drama, live-action-looking synthetic video frame, created for AI image/video generation, not for real film crew shooting, not a behind-the-scenes production reference",
     "characterBase": "AI character consistency reference, image-to-video ready, synthetic human identity source, not actor casting, not costume fitting, not real photography test",
@@ -11,7 +10,6 @@
     "location": "AI visual reference for synthetic photoreal drama generation, not a traditional film crew art department board, not a scouting photo for a real location",
     "cover": "mobile-feed short drama cover, genre and central conflict and character relationship legible within half a second, cinematic yet real camera framing"
   },
-
   "negatives": {
     "shared": "text, watermark, logo, subtitles, captions, speech bubbles, UI overlays, distorted hands, extra fingers, malformed anatomy, blurry, low quality",
     "photoreal": "beauty-filter plasticity, waxy skin, plastic skin, CGI face, 3d render, anime, illustration, cartoon, cosplay, fashion editorial, beauty campaign",
@@ -19,27 +17,31 @@
     "keyframe": "inconsistent character, clothing change, prop change, duplicate face, random background change, movie poster composition",
     "cover": "duplicated title, invented subtitle, genre tag, style label, fake platform UI, wrong-language text, microcopy, unreadable title stack"
   },
-
   "characterBase": {
     "spec": "one production reference image of one character only, clean full-body figure on pure white or off-white cutout background, complete from hair top to footwear bottom with headroom and lateral clearance and visible shoes, single consistent camera and perspective and lighting and ground line, accurate anatomy and wardrobe, consistent actor identity",
     "note": "§2 hard production contract: identity views outrank every secondary module; never crop or shrink the figure to force a ratio."
   },
-
   "characterSheet": {
     "spec": "one character performance board on pure white or off-white, a compact front and three-quarter and side and back turnaround occupying only the upper 20-25 percent, and below it distinct panels for expressions and head angles and acting poses and hand gestures, same face throughout but a different expression and angle and posture in every panel",
     "note": "real-short-drama v0.1.2 MODULE 03: identity consistent does NOT mean pose consistent. A sheet that collapses into a row of near-identical standing poses is a failure."
   },
-
   "location": {
     "spec": "establishing reference of the location with no people present, consistent geography and light direction"
   },
-
   "cover": {
     "spec": "one dominant cover grammar: an intimate two-lead close-up, or a single lead with a decisive prop or conflict, or a family/power pyramid. Make the relationship or reversal legible immediately. Biological skin texture, imperfect light behavior, plausible hair and fabric, lens depth, clean compositing",
     "ratio": "3:4",
     "safeMarginPercent": 5,
     "note": "short-drama-cover-design: the exact title stays verbatim — never shorten, translate, bracket, or add a slogan. If only a title is supplied it is the ONLY visible text."
   },
-
-  "continuityClause": "Keep the same character identity across shots: same face, age, hairstyle, body type, skin tone, wardrobe, and key props. Keep location geography and light direction consistent."
+  "continuityClause": "Keep the same character identity across shots: same face, age, hairstyle, body type, skin tone, wardrobe, and key props. Keep location geography and light direction consistent.",
+  "introCard": {
+    "fontPath": "/System/Library/Fonts/STHeiti Medium.ttc",
+    "titleColour": "#F5F0E6",
+    "subtitleColour": "#D6B26A",
+    "accentColour": "#D6B26A",
+    "panelColour": "#0C0E12",
+    "panelOpacity": 0.55,
+    "widthRatio": 0.2
+  }
 }

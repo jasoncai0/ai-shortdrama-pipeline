@@ -9,6 +9,7 @@ export type PortName =
   | 'state'
   | 'ledger'
   | 'export'
+  | 'textCard'
   | 'music'
   | 'speech'
   | 'post'

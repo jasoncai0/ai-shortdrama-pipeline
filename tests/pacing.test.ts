@@ -179,3 +179,26 @@ describe('subtitle voice distinction', () => {
     expect(srt).not.toContain('<i>')
   })
 })
+
+describe('clause split fallback', () => {
+  test('splits a wedged line at clause punctuation, keeping terminators', async () => {
+    const { clauseSplit } = await import('../src/plugins/stage/dub.js')
+    expect(clauseSplit('你!目无尊长!')).toEqual(['你!', '目无尊长!'])
+  })
+
+  test('loses not one character', async () => {
+    const { clauseSplit } = await import('../src/plugins/stage/dub.js')
+    const line = '好说。你西楼拨十顷田给北楼,我让儿子替你扛差!'
+    expect(clauseSplit(line).join('')).toBe(line)
+  })
+
+  test('a line with no punctuation cannot be split, so the caller must rethrow', async () => {
+    const { clauseSplit } = await import('../src/plugins/stage/dub.js')
+    expect(clauseSplit('目无尊长')).toHaveLength(1)
+  })
+
+  test('drops nothing but whitespace', async () => {
+    const { clauseSplit } = await import('../src/plugins/stage/dub.js')
+    expect(clauseSplit('  甲, 乙。  ')).toEqual(['甲,', '乙。'])
+  })
+})

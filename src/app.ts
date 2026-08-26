@@ -9,6 +9,7 @@ import type {
   GenerateMiddleware,
   MusicPort,
   PostPort,
+  TextCardPort,
   ImagePort,
   LLMPort,
   LedgerPort,
@@ -42,7 +43,7 @@ export const buildApp = async (
 ): Promise<App> => {
   const registry = new PluginRegistry(builtins, { log, cwd })
 
-  const [llm, rawImage, rawVideo, assetStore, state, ledger, exporter, rawSpeech, music, post, promptStrategy] =
+  const [llm, rawImage, rawVideo, assetStore, state, ledger, exporter, rawSpeech, music, post, textCard, promptStrategy] =
     await Promise.all([
       registry.load<LLMPort>('llm', config.ports.llm.impl, config.ports.llm.options),
       registry.load<ImagePort>('image', config.ports.image.impl, config.ports.image.options),
@@ -61,6 +62,7 @@ export const buildApp = async (
       registry.load<SpeechPort>('speech', config.ports.speech.impl, config.ports.speech.options),
       registry.load<MusicPort>('music', config.ports.music.impl, config.ports.music.options),
       registry.load<PostPort>('post', config.ports.post.impl, config.ports.post.options),
+      registry.load<TextCardPort>('textCard', config.ports.textCard.impl, config.ports.textCard.options),
       registry.load<PromptStrategyPort>(
         'promptStrategy',
         config.ports.promptStrategy.impl,
@@ -107,7 +109,7 @@ export const buildApp = async (
   }
 
   return {
-    ports: { llm, image, video, assetStore, state, ledger, export: exporter, speech, music, post, promptStrategy },
+    ports: { llm, image, video, assetStore, state, ledger, export: exporter, speech, music, post, textCard, promptStrategy },
     stages,
     stagePlugins,
     registry,

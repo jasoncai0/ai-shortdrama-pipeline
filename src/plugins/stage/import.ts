@@ -18,6 +18,13 @@ import type { Character, Episode, Prop, Scene, Shot } from '../../kernel/types.j
  * a loud warning rather than a silently-dropped consistency anchor.
  */
 
+/**
+ * Strict on purpose. `characters` was written as `characterNames` in a
+ * screenplay once and zod's `.default([])` filled the real field with an empty
+ * array — so every shot imported with no cast, the run looked clean, and the
+ * identity references silently stopped being attached. Unknown names already
+ * warned; unknown *keys* said nothing. Now they fail.
+ */
 const screenplaySchema = z.object({
   title: z.string().min(1),
   genre: z.string().min(1),
@@ -33,13 +40,15 @@ const screenplaySchema = z.object({
         name: z.string().min(1),
         appearance: z.string().min(1),
         personality: z.string().optional(),
-      }),
+        /** One-line identity for the intro card. */
+        epithet: z.string().optional(),
+      }).strict(),
     )
     .min(1),
   scenes: z
-    .array(z.object({ name: z.string().min(1), visualDescription: z.string().min(1) }))
+    .array(z.object({ name: z.string().min(1), visualDescription: z.string().min(1) }).strict())
     .min(1),
-  props: z.array(z.object({ name: z.string().min(1), description: z.string().min(1) })).default([]),
+  props: z.array(z.object({ name: z.string().min(1), description: z.string().min(1) }).strict()).default([]),
   episodes: z
     .array(
       z.object({
@@ -60,13 +69,13 @@ const screenplaySchema = z.object({
               characters: z.array(z.string()).default([]),
               scene: z.string().optional(),
               props: z.array(z.string()).default([]),
-            }),
+            }).strict(),
           )
           .min(1),
-      }),
+      }).strict(),
     )
     .min(1),
-})
+}).strict()
 
 export type Screenplay = z.infer<typeof screenplaySchema>
 
@@ -122,6 +131,7 @@ export default definePlugin<StagePort>({
         name: c.name,
         appearance: c.appearance,
         personality: c.personality,
+        epithet: c.epithet,
       }))
       const scenes: readonly Scene[] = script.scenes.map((s, i) => ({
         id: `sc${i + 1}`,

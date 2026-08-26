@@ -16,6 +16,11 @@ export interface RunOptions {
   readonly log?: Logger
   /** Stream child stderr to our logger as it arrives (progress lines). */
   readonly streamStderr?: boolean
+  /**
+   * Written to the child's stdin, which is then closed. Used to hand a helper
+   * its input without that input ever touching disk.
+   */
+  readonly stdin?: string
 }
 
 /**
@@ -28,14 +33,18 @@ export const run = async (
   args: readonly string[],
   opts: RunOptions = {},
 ): Promise<RunResult> => {
-  const { cwd, env, timeoutMs = 0, log, streamStderr = false } = opts
+  const { cwd, env, timeoutMs = 0, log, streamStderr = false, stdin } = opts
 
   return new Promise<RunResult>((resolvePromise, reject) => {
     const child = spawn(cmd, [...args], {
       cwd,
       env: env ? { ...process.env, ...env } : process.env,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: [stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
     })
+
+    if (stdin !== undefined && child.stdin) {
+      child.stdin.end(stdin)
+    }
 
     const outChunks: string[] = []
     const errChunks: string[] = []
@@ -52,11 +61,16 @@ export const run = async (
       }, timeoutMs)
     }
 
-    child.stdout.setEncoding('utf8')
-    child.stdout.on('data', (chunk: string) => outChunks.push(chunk))
+    // stdio is 'pipe' for both, so these are non-null; TS cannot see that
+    // through the conditional stdin entry.
+    const stdout = child.stdout as NodeJS.ReadableStream
+    const stderr = child.stderr as NodeJS.ReadableStream
 
-    child.stderr.setEncoding('utf8')
-    child.stderr.on('data', (chunk: string) => {
+    stdout.setEncoding('utf8')
+    stdout.on('data', (chunk: string) => outChunks.push(chunk))
+
+    stderr.setEncoding('utf8')
+    stderr.on('data', (chunk: string) => {
       errChunks.push(chunk)
       if (streamStderr && log) {
         for (const line of chunk.split('\n')) {

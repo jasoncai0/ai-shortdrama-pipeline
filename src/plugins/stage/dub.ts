@@ -2,6 +2,7 @@ import { idempotencyKey } from '../../kernel/idem.js'
 import { definePlugin } from '../../kernel/registry.js'
 import { findCharacter } from '../../kernel/types.js'
 import { mapPool } from '../../lib/pool.js'
+import { describeError } from '../../kernel/errors.js'
 import { billedGenerate, summarize } from './shared.js'
 import type { StagePort } from '../../kernel/ports.js'
 import type { AssetRef, Shot } from '../../kernel/types.js'
@@ -31,6 +32,11 @@ import type { AssetRef, Shot } from '../../kernel/types.js'
  *   bedGainDb       clip's own audio while the voice plays, default -12
  *   padToVoice      hold the last frame when a line outruns the shot (default false)
  *   includeNarration speak `shot.narration` too (default true)
+ *   splitOnFailure  when a whole line wedges the provider, say it in clauses
+ *                   and join the takes (default true). Some phrasings hang a
+ *                   provider's moderation path indefinitely while each clause
+ *                   on its own is fine; splitting keeps every character rather
+ *                   than leaving the line silent.
  */
 export default definePlugin<StagePort>({
   port: 'stage',
@@ -57,6 +63,7 @@ export default definePlugin<StagePort>({
       const padToVoice = ctx.options['padToVoice'] === true
       const includeNarration = ctx.options['includeNarration'] !== false
       const voices = asRecord(ctx.options['voices'])
+      const splitOnFailure = ctx.options['splitOnFailure'] !== false
       const narratorVoice = asString(ctx.options['narratorVoice'])
       const limit = Math.min(2, ports.speech.caps.maxConcurrency)
 
@@ -84,23 +91,51 @@ export default definePlugin<StagePort>({
         const voice = speakerName ? asString(voices[speakerName]) : narratorVoice
         if (speakerName && !voice) uncast.add(speakerName)
 
-        const voiceKey = idempotencyKey('dub', shot.id, { text, voice, speed })
-        const track = await billedGenerate({
-          ports,
-          log,
-          idempotencyKey: voiceKey,
-          cost,
-          reason: `voice ${shot.id}`,
-          meta: { kind: 'other', mime: 'audio/mpeg', projectId: project.id, label: `${shot.id}-voice` },
-          produce: () =>
-            ports.speech.synthesize({
-              text,
-              voice,
-              speed,
-              idempotencyKey: voiceKey,
-              label: shot.id,
-            }),
-        })
+        const say = (body: string, suffix: string): Promise<AssetRef> => {
+          const key = idempotencyKey('dub', `${shot.id}${suffix}`, { text: body, voice, speed })
+          return billedGenerate({
+            ports,
+            log,
+            idempotencyKey: key,
+            cost,
+            reason: `voice ${shot.id}${suffix}`,
+            meta: {
+              kind: 'other',
+              mime: 'audio/mpeg',
+              projectId: project.id,
+              label: `${shot.id}${suffix}-voice`,
+            },
+            produce: () =>
+              ports.speech.synthesize({
+                text: body,
+                voice,
+                speed,
+                idempotencyKey: key,
+                label: `${shot.id}${suffix}`,
+              }),
+          })
+        }
+
+        let track: AssetRef
+        try {
+          track = await say(text, '')
+        } catch (error) {
+          const clauses = splitOnFailure ? clauseSplit(text) : []
+          if (!ports.post.concatAudio || clauses.length < 2) throw error
+
+          // A provider that hangs on one phrasing will usually say each clause
+          // without complaint. Spoken in pieces and rejoined, not one
+          // character of script is lost.
+          log.warn(
+            `dub: ${shot.id} failed as one take; retrying as ${clauses.length} clauses — ${describeError(error)}`,
+          )
+          const takes: AssetRef[] = []
+          for (const [i, clause] of clauses.entries()) {
+            takes.push(await say(clause, `-p${i + 1}`))
+          }
+          track = await ports.post.concatAudio(takes, ports.assetStore, project.id)
+          log.info(`dub: ${shot.id} recovered from ${clauses.length} clause takes`)
+        }
 
         const voiced = await mixVoice(
           shot.clip as AssetRef,
@@ -165,3 +200,12 @@ const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {}
+
+/**
+ * Splits a line at sentence-and-clause punctuation, keeping the terminator with
+ * its clause so each take still sounds like speech rather than a fragment.
+ */
+export const clauseSplit = (text: string): readonly string[] => {
+  const parts = text.match(/[^。！？!?…，,、；;：:]*[。！？!?…，,、；;：:]+|[^。！？!?…，,、；;：:]+/g)
+  return (parts ?? []).map((p) => p.trim()).filter((p) => p.length > 0)
+}

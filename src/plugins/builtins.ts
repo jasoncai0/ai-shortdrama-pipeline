@@ -35,6 +35,9 @@ export const builtins: BuiltinTable = {
   'music/multi': () => import('./music/multi.js'),
   'music/stub': () => import('./music/stub.js'),
 
+  'textCard/pillow': () => import('./textcard/pillow.js'),
+  'textCard/stub': () => import('./textcard/stub.js'),
+
   'post/ffmpeg': () => import('./post/ffmpeg.js'),
   'post/none': () => import('./post/none.js'),
 
@@ -62,5 +65,6 @@ export const builtins: BuiltinTable = {
   'stage/gate': () => import('./stage/gate.js'),
   'stage/export': () => import('./stage/export.js'),
   'stage/music': () => import('./stage/music.js'),
+  'stage/intro-cards': () => import('./stage/intro-cards.js'),
   'stage/subtitles': () => import('./stage/subtitles.js'),
 }

@@ -267,6 +267,47 @@ export interface MusicPort extends Plugin {
   find(brief: MusicBrief, limit: number): Promise<readonly MusicCandidate[]>
 }
 
+// ─── text cards ───────────────────────────────────────────────────────────
+
+/**
+ * A character intro card, rendered deterministically.
+ *
+ * Deliberately not an image model's job. The requirement is that the name is
+ * *correct*, and a diffusion model cannot be relied on to spell 「陈宗之」 —
+ * it will produce something that looks like Chinese and is not. Typography is
+ * a solved problem; generation is the wrong tool for it.
+ */
+export interface TextCardSpec {
+  /** Large vertical text — the character's name. */
+  readonly title: string
+  /** Smaller vertical text under it — role, relationship, one line. */
+  readonly subtitle?: string
+  readonly widthPx: number
+  readonly heightPx: number
+  readonly titleSizePx: number
+  readonly subtitleSizePx: number
+  /** Absolute path to a font file that actually contains the glyphs. */
+  readonly fontPath: string
+  readonly titleColour: string
+  readonly subtitleColour: string
+  readonly accentColour: string
+  /** Backing panel behind the text; 0 disables it. */
+  readonly panelOpacity: number
+  readonly panelColour: string
+  /** Which edge the card hugs — decides which side the accent rule sits on. */
+  readonly side: 'left' | 'right'
+}
+
+export interface TextCardCaps {
+  /** Vertical CJK layout, one glyph per line. */
+  readonly vertical: boolean
+}
+
+export interface TextCardPort extends Plugin {
+  readonly caps: TextCardCaps
+  render(spec: TextCardSpec, store: AssetStorePort, projectId: string, label: string): Promise<AssetRef>
+}
+
 // ─── post production ──────────────────────────────────────────────────────
 
 export interface MixOptions {
@@ -278,6 +319,16 @@ export interface MixOptions {
   readonly loop: boolean
   /** Pull the music down while dialogue plays. */
   readonly duckUnderDialogue: boolean
+}
+
+/** One timed overlay: a rendered card and the window it is visible for. */
+export interface CardOverlay {
+  readonly image: AssetRef
+  readonly startSeconds: number
+  readonly endSeconds: number
+  readonly side: 'left' | 'right'
+  readonly marginPx: number
+  readonly fadeSeconds: number
 }
 
 export interface SubtitleCue {
@@ -317,6 +368,33 @@ export interface VoiceMixOptions {
 }
 
 export interface PostPort extends Plugin {
+  /**
+   * Measured runtime of a rendered asset. Everything that places something on
+   * a timeline needs this, and they all have to agree — a model asked for 4s
+   * returns 4.096s, and two callers measuring differently drift apart.
+   */
+  probeDuration(asset: AssetRef, store: AssetStorePort): Promise<number>
+  /**
+   * Composites timed cards onto a cut. One pass for all of them: each card is
+   * a re-encode, and doing them one at a time would generation-loss the
+   * picture once per character.
+   */
+  overlayCards?(
+    video: AssetRef,
+    cards: readonly CardOverlay[],
+    store: AssetStorePort,
+    projectId: string,
+  ): Promise<AssetRef>
+  /**
+   * Joins voice takes end to end, so a line the provider refuses to say in one
+   * piece can be spoken in clauses and reassembled. Optional: an adapter may
+   * ship without it, in which case a wedged line stays silent.
+   */
+  concatAudio?(
+    tracks: readonly AssetRef[],
+    store: AssetStorePort,
+    projectId: string,
+  ): Promise<AssetRef>
   /**
    * Lays a voice track over one clip. Optional so an adapter can ship music
    * and subtitles without speech support.
@@ -404,6 +482,7 @@ export interface ExportPort extends Plugin {
 
 export interface Ports {
   readonly llm: LLMPort
+  readonly textCard: TextCardPort
   readonly music: MusicPort
   readonly speech: SpeechPort
   readonly post: PostPort

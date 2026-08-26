@@ -20,6 +20,7 @@ export default definePlugin<PostPort>({
     }
     return {
       name: 'none',
+      probeDuration: async () => refuse('measuring a clip'),
       mixMusic: async () => refuse('mixing a score'),
       buildSubtitles: async () => refuse('building subtitles'),
       burnSubtitles: async () => refuse('burning subtitles'),

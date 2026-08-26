@@ -13,12 +13,14 @@
   "styleGuide": "cinematic neo-noir, teal and orange grade, 35mm film grain, shallow depth of field, rain",
   "characters": [
     {
-      "name": "Courier",
-      "appearance": "late-20s food courier, yellow rain jacket, buzz cut, wet face, insulated delivery backpack"
+      "name": "林默",
+      "appearance": "late-20s Chinese male food courier, yellow rain jacket, buzz cut",
+      "epithet": "外卖员 · 目击者"
     },
     {
-      "name": "Stranger",
-      "appearance": "tall figure in a long black coat, leather gloves, face in shadow under a hood"
+      "name": "黑衣人",
+      "appearance": "tall figure in a long black coat, leather gloves, hooded",
+      "epithet": "不该被看见的人"
     }
   ],
   "scenes": [
@@ -46,14 +48,14 @@
           "characterAction": "gripping the delivery box strap",
           "emotion": "dread",
           "lightingAndAtmosphere": "harsh neon rimlight, rain haze",
-          "characterNames": [
-            "Courier"
+          "dialogue": "I didn't see anything.",
+          "characters": [
+            "林默"
           ],
-          "sceneName": "Neon Alley",
-          "propNames": [
+          "scene": "Neon Alley",
+          "props": [
             "Delivery Box"
-          ],
-          "dialogue": "I didn't see anything."
+          ]
         },
         {
           "plotDescription": "extreme close-up of the courier's eyes widening",
@@ -63,12 +65,12 @@
           "characterAction": "eyes darting",
           "emotion": "terror",
           "lightingAndAtmosphere": "blue neon on wet skin",
-          "characterNames": [
-            "Courier"
+          "dialogue": "Please. I'm just the delivery guy.",
+          "characters": [
+            "林默"
           ],
-          "sceneName": "Neon Alley",
-          "propNames": [],
-          "dialogue": "Please. I'm just the delivery guy."
+          "scene": "Neon Alley",
+          "props": []
         },
         {
           "plotDescription": "the stranger turns and looks straight down the alley",
@@ -78,12 +80,12 @@
           "characterAction": "turning slowly toward camera",
           "emotion": "cold calm",
           "lightingAndAtmosphere": "backlit by a single sodium lamp, rain streaks",
-          "characterNames": [
-            "Stranger"
+          "dialogue": "You already did.",
+          "characters": [
+            "黑衣人"
           ],
-          "sceneName": "Neon Alley",
-          "propNames": [],
-          "dialogue": "You already did."
+          "scene": "Neon Alley",
+          "props": []
         }
       ]
     }

@@ -49,6 +49,22 @@ export const profileSchema = z.object({
   characterSheet: assetSpec.optional(),
   location: assetSpec.optional(),
   cover: assetSpec.optional(),
+  /**
+   * Styling for the typeset intro cards. It lives beside the image anchors so
+   * the card is dressed by the same document that dresses the picture — the
+   * requirement is that it looks like it belongs, not that it looks nice.
+   */
+  introCard: z
+    .object({
+      fontPath: z.string().optional(),
+      titleColour: z.string().optional(),
+      subtitleColour: z.string().optional(),
+      accentColour: z.string().optional(),
+      panelColour: z.string().optional(),
+      panelOpacity: z.number().min(0).max(1).optional(),
+      widthRatio: z.number().min(0.05).max(0.5).optional(),
+    })
+    .optional(),
   continuityClause: z.string().optional(),
 })
 

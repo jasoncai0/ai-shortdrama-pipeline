@@ -43,9 +43,10 @@ CLI ──► Kernel (pipeline runner · registry · domain model)
 | `speech` | `libtv`, `stub` | stub |
 | `music` | `local`, `openverse`, `libtv`, `multi`, `stub` | multi |
 | `post` | `ffmpeg`, `none` | ffmpeg |
+| `textCard` | `pillow`, `stub` | pillow |
 | `promptStrategy` | `template`, `skill-anchored` | skill-anchored |
 | `middleware` | `retry`, `prompt-tune`, `camera-grammar`, `tuning-log` | all four |
-| `stage` | `import`, `import-script`, `plan`, `assets`, `refs`, `sheets`, `shots`, `camera-check`, `prompts`, `images`, `videos`, `dub`, `cover`, `music`, `subtitles`, `gate`, `export` | — |
+| `stage` | `import`, `import-script`, `plan`, `assets`, `refs`, `sheets`, `shots`, `camera-check`, `prompts`, `images`, `videos`, `dub`, `cover`, `music`, `intro-cards`, `subtitles`, `gate`, `export` | — |
 
 External plugins: `"impl": "npm:my-plugin"` or `"impl": "file:./my-plugin.js"`.
 Any module default-exporting a `definePlugin({...})` works.
@@ -260,6 +261,33 @@ looks like "the search broke".
 `music/local` reads an optional `<track>.json` sidecar for title, tags, runtime
 and licence; without one it ranks by filename tag overlap, which is why
 `tense-strings-loop.mp3` beats `track_03.mp3`.
+
+### Character intro cards are typeset, not generated
+
+Each character gets a vertical name card the first time they appear.
+
+**The name has to be right, so no image model touches it.** A diffusion model
+produces something that resembles 「陈宗之」 and is not it. This ffmpeg has no
+freetype either, so `drawtext` is unavailable — the card is rendered by the
+`textCard` port (Pillow, one glyph per line) and composited with `overlay`.
+Every card in the cut goes on in a single pass: one re-encode per character
+would show generation loss by the third.
+
+Placement is a property of the cut, so it uses the same measured durations the
+subtitles do. `src/lib/introcards.ts` holds the rules, tested in isolation
+because none of them is visible in a screenshot:
+
+- a card appears once, on first appearance, and never again
+- it never outlives its shot
+- a shot too short to read leaves the character waiting for their next one
+- two characters entering together produce one card, not a stack; the other is
+  deferred with a note
+- sides alternate by default, so a meeting does not pile up on one edge
+- a character who never gets a card is **reported**, not lost
+
+Style comes from the prompt profile's `introCard` block — the same file the
+image prompts take their palette from, so the card is dressed by the production
+rather than decorated separately.
 
 ### Subtitles go on last, and only to a cut somebody approved
 
