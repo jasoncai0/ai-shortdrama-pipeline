@@ -58,11 +58,24 @@ export default definePlugin<StagePort>({
       const effectiveRatio = ratio ?? project.ratio
 
       // Leads first: cover grammar is built on one or two faces, and the
-      // reference budget is finite.
+      // reference budget is finite. `leadNames` picks them explicitly — cast
+      // order puts the hero's mother second, and she is not who sells a feed
+      // thumbnail. Falls back to billing, then cast order.
       const leadCount = Math.max(1, numberOption(ctx.options['leads'], 2))
-      const leads = project.characters
-        .filter((c) => c.refImage)
-        .slice(0, Math.min(leadCount, ports.image.caps.refImages))
+      const wantedNames = Array.isArray(ctx.options['leadNames'])
+        ? (ctx.options['leadNames'] as unknown[]).filter((n): n is string => typeof n === 'string')
+        : []
+      const eligible = project.characters.filter((c) => c.refImage)
+      const named = wantedNames
+        .map((n) => eligible.find((c) => c.name === n))
+        .filter((c): c is NonNullable<typeof c> => c !== undefined)
+      for (const missing of wantedNames.filter((n) => !named.some((c) => c.name === n))) {
+        log.warn(`cover: leadNames includes "${missing}" but there is no confirmed @base for them`)
+      }
+      const pool = named.length > 0
+        ? named
+        : [...eligible].sort((a, b) => (a.billing === 'lead' ? -1 : 0) - (b.billing === 'lead' ? -1 : 0))
+      const leads = pool.slice(0, Math.min(leadCount, ports.image.caps.refImages))
       const refs = leads.map((c) => c.refImage as AssetRef)
 
       const safeMargin = profile?.cover?.safeMarginPercent ?? 5
