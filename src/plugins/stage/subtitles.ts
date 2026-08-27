@@ -2,6 +2,7 @@ import { stateError } from '../../kernel/errors.js'
 import { definePlugin } from '../../kernel/registry.js'
 import type { StagePort, SubtitleCue } from '../../kernel/ports.js'
 import { renderedClip } from '../../kernel/types.js'
+import { episodeOrder } from '../../kernel/types.js'
 import type { AssetRef } from '../../kernel/types.js'
 
 /**
@@ -69,7 +70,7 @@ export default definePlugin<StagePort>({
       const ordered = [...project.shots]
         .filter((s) => renderedClip(s))
         .sort((a, b) => {
-          const byEpisode = a.episodeId.localeCompare(b.episodeId)
+          const byEpisode = episodeOrder(a.episodeId) - episodeOrder(b.episodeId)
           return byEpisode !== 0 ? byEpisode : a.order - b.order
         })
 

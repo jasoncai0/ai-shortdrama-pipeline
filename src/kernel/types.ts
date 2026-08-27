@@ -270,3 +270,12 @@ export const findScene = (
 
 export const findProp = (project: Project, id: string): Prop | undefined =>
   project.props.find((p) => p.id === id)
+
+/**
+ * Episode ids sort as numbers, not strings — "ep10" comes after "ep9", not
+ * before "ep2". String comparison put episode 10 at the head of a season cut.
+ */
+export const episodeOrder = (id: string): number => {
+  const n = /(\d+)/.exec(id)
+  return n ? Number(n[1]) : Number.MAX_SAFE_INTEGER
+}

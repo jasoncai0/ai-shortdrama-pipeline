@@ -1,4 +1,5 @@
 import { renderedClip, type Character, type Project, type Shot } from '../kernel/types.js'
+import { episodeOrder } from '../kernel/types.js'
 
 /**
  * Works out who to introduce, where, and for how long.
@@ -50,7 +51,7 @@ export const orderedShots = (project: Project): readonly Shot[] =>
   [...project.shots]
     .filter((s) => renderedClip(s))
     .sort((a, b) => {
-      const byEpisode = a.episodeId.localeCompare(b.episodeId)
+      const byEpisode = episodeOrder(a.episodeId) - episodeOrder(b.episodeId)
       return byEpisode !== 0 ? byEpisode : a.order - b.order
     })
 

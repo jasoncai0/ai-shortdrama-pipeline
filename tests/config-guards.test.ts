@@ -130,3 +130,13 @@ describe('SRT markup never reaches the picture', () => {
     expect(cues[0]?.italic).toBe(false)
   })
 })
+
+describe('episode ordering', () => {
+  test('"ep10" sorts after "ep9", not before "ep2"', async () => {
+    const { episodeOrder } = await import('../src/kernel/types.js')
+    const ids = ['ep10', 'ep2', 'ep9', 'ep1']
+    const sorted = [...ids].sort((a, b) => episodeOrder(a) - episodeOrder(b))
+
+    expect(sorted).toEqual(['ep1', 'ep2', 'ep9', 'ep10'])
+  })
+})

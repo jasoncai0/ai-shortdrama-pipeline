@@ -1,6 +1,7 @@
 import { definePlugin } from '../../kernel/registry.js'
 import type { StagePort } from '../../kernel/ports.js'
 import { renderedClip } from '../../kernel/types.js'
+import { episodeOrder } from '../../kernel/types.js'
 import type { AssetRef } from '../../kernel/types.js'
 
 /**
@@ -22,7 +23,7 @@ export default definePlugin<StagePort>({
       const { project, ports, log } = ctx
 
       const ordered = [...project.shots].sort((a, b) => {
-        const byEpisode = a.episodeId.localeCompare(b.episodeId)
+        const byEpisode = episodeOrder(a.episodeId) - episodeOrder(b.episodeId)
         return byEpisode !== 0 ? byEpisode : a.order - b.order
       })
 
