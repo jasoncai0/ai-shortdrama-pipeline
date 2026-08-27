@@ -19,6 +19,14 @@ import type { MusicCandidate, MusicPort } from '../../kernel/ports.js'
  *   model    default "Seed Audio 1.0"
  *   maxSeconds  clamp, default 120
  */
+/** Allowed music_length_ms values, shortest that still covers the request. */
+const DURATION_MS = [30_000, 60_000, 120_000, 180_000, 240_000]
+
+export const snapDurationMs = (seconds: number): number => {
+  const wanted = seconds * 1000
+  return DURATION_MS.find((ms) => ms >= wanted) ?? DURATION_MS[DURATION_MS.length - 1]!
+}
+
 export default definePlugin<MusicPort>({
   port: 'music',
   name: 'libtv',
@@ -37,8 +45,10 @@ export default definePlugin<MusicPort>({
       log: deps.log,
       cwd: deps.cwd,
     })
-    const model = asString(options['model']) ?? 'Seed Audio 1.0'
-    const maxSeconds = numberOption(options['maxSeconds'], 120)
+    // "Eleven Music V3" is the music model on the canvas; "Seed Audio" is
+    // voice/sfx and has no duration control at all.
+    const model = asString(options['model']) ?? 'Eleven Music V3'
+    const maxSeconds = numberOption(options['maxSeconds'], 240)
 
     return {
       name: 'libtv',
@@ -65,7 +75,11 @@ export default definePlugin<MusicPort>({
           type: 'audio',
           prompt,
           run: true,
-          set: { model, duration: seconds },
+          // The model takes a fixed menu of lengths in milliseconds, so the
+          // brief's seconds snap up to the shortest one that covers the cut —
+          // a score that runs long is trimmed at the mix, one that runs short
+          // leaves silence.
+          set: { model, scene: 'Music', duration: snapDurationMs(seconds) },
         })
 
         const url = firstUrl(node, 'generated score')
