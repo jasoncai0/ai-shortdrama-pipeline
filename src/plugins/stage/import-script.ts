@@ -4,6 +4,7 @@ import { configError, stateError } from '../../kernel/errors.js'
 import { definePlugin } from '../../kernel/registry.js'
 import { charactersInLine, parseScript, withAliases } from '../../lib/script-parser.js'
 import { paceBeats } from '../../lib/pacing.js'
+import { planShotLanguage } from '../../lib/shotlang.js'
 import type { StagePort } from '../../kernel/ports.js'
 import type {
   Character,
@@ -391,6 +392,13 @@ export default definePlugin<StagePort>({
         `import-script: pacing — ${narrationInsertCount} 旁白留白镜, ${transitionInsertCount} 转场空镜` +
           (suppressedTransitions > 0 ? `, ${suppressedTransitions} 处场景切换未加转场(受 maxInsertRatio 限制)` : ''),
       )
+      // Coverage pass: sizes, moves, and two-person dialogue framing. Runs
+      // before the on-camera filter so a listener added to a shot counts as
+      // appearing and gets a design image.
+      const planned = planShotLanguage(shots)
+      shots.length = 0
+      shots.push(...planned)
+
       // A name can be mentioned in dialogue without ever being on camera, and
       // the cast table lists the whole season. Anyone with no shot of their own
       // would still be paid for twice downstream — @base and @sheet — so they

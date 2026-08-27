@@ -4,8 +4,8 @@ import { join } from 'node:path'
 import { providerError } from '../../kernel/errors.js'
 import { definePlugin } from '../../kernel/registry.js'
 import { buildSrt } from '../../lib/srt.js'
-import { parseJsonStdout, runOrThrow } from '../../lib/proc.js'
-import type { PostPort } from '../../kernel/ports.js'
+import { parseJsonStdout, run, runOrThrow } from '../../lib/proc.js'
+import type { Logger, PostPort, SubtitleStyle } from '../../kernel/ports.js'
 
 /**
  * Post production: score mixing, subtitle timing, subtitle burn-in.
@@ -296,16 +296,35 @@ export default definePlugin<PostPort>({
         // including Homebrew's default. Detect it once rather than letting the
         // run die on "No such filter: 'subtitles'" after the picture is paid for.
         if (!(await hasSubtitlesFilter(bin))) {
-          deps.log.warn(
-            'post/ffmpeg: this ffmpeg has no libass, so subtitles cannot be burned into the picture.',
+          // No libass, but subtitles must still be IN the picture — a soft
+          // mov_text track is invisible on every short-drama feed. Pillow
+          // rasterises each cue and ffmpeg composites them with plain
+          // `overlay`, which every build has. The text itself is typeset, not
+          // generated, so it is exact by construction.
+          deps.log.info(
+            'post/ffmpeg: no libass in this ffmpeg — burning subtitles via Pillow overlay instead',
           )
-          deps.log.warn(
-            '  Falling back to a soft mov_text track: players can show it, but it is toggleable and',
-          )
-          deps.log.warn(
-            '  most short-drama feeds will not display it. Install ffmpeg with libass for hardsub.',
-          )
+          const burned = await burnViaOverlay({
+            bin,
+            videoPath,
+            srtText: new TextDecoder().decode(await readFile(srtPath)),
+            style,
+            out,
+            log: deps.log,
+          })
+          if (burned) {
+            return store.put(new Uint8Array(await readFile(out)), {
+              kind: 'final',
+              mime: 'video/mp4',
+              projectId,
+              label: 'subtitled-cut',
+              extra: { subtitleMode: 'overlay' },
+            })
+          }
 
+          deps.log.warn(
+            'post/ffmpeg: Pillow overlay failed too — falling back to a soft mov_text track.',
+          )
           await runOrThrow(
             bin,
             [
@@ -412,6 +431,185 @@ const toAssColour = (hex: string): string => {
 export { toAssColour }
 
 /** Exposed for the writer that needs a temp file next to the video. */
+
+// ─── hardsub without libass ────────────────────────────────────────────────
+
+interface SrtCue {
+  readonly start: number
+  readonly end: number
+  readonly text: string
+}
+
+const srtTime = (t: string): number => {
+  const m = /(\d+):(\d+):(\d+)[,.](\d+)/.exec(t)
+  if (!m) return 0
+  return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) + Number(m[4]) / 1000
+}
+
+export const parseSrt = (srt: string): readonly SrtCue[] =>
+  srt
+    .replace(/\r/g, '')
+    .split(/\n\n+/)
+    .flatMap((block) => {
+      const lines = block.trim().split('\n')
+      const timing = lines.find((l) => l.includes('-->'))
+      if (!timing) return []
+      const [from, to] = timing.split('-->').map((x) => x.trim())
+      const text = lines
+        .slice(lines.indexOf(timing) + 1)
+        .join('\n')
+        .trim()
+      if (!text || !from || !to) return []
+      return [{ start: srtTime(from), end: srtTime(to), text }]
+    })
+
+/** Fonts that hold CJK glyphs, most specific first. */
+const CJK_FONTS = [
+  '/System/Library/Fonts/STHeiti Medium.ttc',
+  '/System/Library/Fonts/PingFang.ttc',
+  '/System/Library/Fonts/Hiragino Sans GB.ttc',
+  '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+]
+
+/**
+ * Rasterises every cue with Pillow and composites the strips with `overlay`.
+ *
+ * This is the hardsub path for ffmpeg builds without libass (Homebrew's
+ * bottle among them): the glyphs are typeset by Pillow — deterministic, full
+ * CJK — and ffmpeg only places pixels, a filter every build ships. One pass,
+ * one re-encode, same as the libass route.
+ */
+const burnViaOverlay = async (args: {
+  bin: string
+  videoPath: string
+  srtText: string
+  style: SubtitleStyle
+  out: string
+  log: Logger
+}): Promise<boolean> => {
+  const cues = parseSrt(args.srtText)
+  if (cues.length === 0) return false
+
+  const probed = await run(args.bin.replace(/ffmpeg$/, 'ffprobe'), [
+    '-v', 'quiet',
+    '-select_streams', 'v:0',
+    '-show_entries', 'stream=width,height',
+    '-of', 'csv=p=0',
+    args.videoPath,
+  ], { timeoutMs: 30_000, log: args.log })
+  const [width, height] = probed.stdout.trim().split(',').map(Number)
+  if (!width || !height) return false
+
+  const dir = await mkdtemp(join(tmpdir(), 'duanju-hardsub-'))
+  const script = join(dir, 'cues.py')
+  await writeFile(script, CUE_SCRIPT, 'utf8')
+
+  const render = await run('python3', [script], {
+    timeoutMs: 120_000,
+    log: args.log,
+    stdin: `${JSON.stringify({
+      dir,
+      width,
+      // Font size in the style is spoken in libass points on a 720-wide
+      // canvas; scale to actual pixels so both burn paths look alike.
+      fontPx: Math.round((args.style.fontSize / 22) * (width / 14)),
+      fonts: CJK_FONTS,
+      fill: args.style.primaryColour,
+      stroke: args.style.outlineColour,
+      cues: cues.map((c) => c.text),
+    })}\n`,
+  })
+  if (render.code !== 0) {
+    args.log.warn(`post/ffmpeg: cue rasteriser failed: ${render.stderr.slice(0, 300)}`)
+    return false
+  }
+
+  // One input per cue strip, all placed bottom-centre in their window.
+  const inputs: string[] = ['-i', args.videoPath]
+  const filters: string[] = []
+  let chain = '[0:v]'
+  cues.forEach((cue, i) => {
+    inputs.push(
+      '-loop', '1',
+      '-framerate', '30',
+      '-t', Math.max(cue.end - cue.start, 0.1).toFixed(3),
+      '-i', join(dir, `cue-${i}.png`),
+    )
+    const next = i === cues.length - 1 ? '[v]' : `[s${i}]`
+    filters.push(
+      `${chain}[${i + 1}:v]overlay=(W-w)/2:H-h-${args.style.marginVertical}:enable='between(t,${cue.start.toFixed(3)},${cue.end.toFixed(3)})'${next}`,
+    )
+    chain = `[s${i}]`
+  })
+
+  const result = await run(args.bin, [
+    '-y', '-hide_banner', '-loglevel', 'error',
+    ...inputs,
+    '-filter_complex', filters.join(';'),
+    '-map', '[v]', '-map', '0:a?',
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', '19',
+    '-c:a', 'copy',
+    args.out,
+  ], { timeoutMs: 0, log: args.log })
+  if (result.code !== 0) {
+    args.log.warn(`post/ffmpeg: overlay burn failed: ${result.stderr.slice(0, 300)}`)
+    return false
+  }
+  return true
+}
+
+/**
+ * Renders each cue as a transparent full-width strip, text centred with a
+ * stroke, wrapping at the frame's safe width. JSON in on stdin, PNGs out.
+ */
+const CUE_SCRIPT = String.raw`
+import json, sys, os
+from PIL import Image, ImageDraw, ImageFont
+
+spec = json.loads(sys.stdin.readline())
+font = None
+for path in spec["fonts"]:
+    if os.path.exists(path):
+        try:
+            font = ImageFont.truetype(path, spec["fontPx"])
+            break
+        except OSError:
+            continue
+if font is None:
+    print("FONT_ERROR", file=sys.stderr)
+    sys.exit(1)
+
+W = spec["width"]
+safe = int(W * 0.9)
+stroke = max(2, spec["fontPx"] // 12)
+
+def wrap(text, draw):
+    lines, line = [], ""
+    for ch in text.replace("\n", ""):
+        probe = line + ch
+        if draw.textlength(probe, font=font) > safe and line:
+            lines.append(line); line = ch
+        else:
+            line = probe
+    if line: lines.append(line)
+    return lines or [""]
+
+probe_img = Image.new("RGBA", (W, 10))
+probe_draw = ImageDraw.Draw(probe_img)
+for i, text in enumerate(spec["cues"]):
+    lines = wrap(text, probe_draw)
+    lh = spec["fontPx"] + stroke * 2 + 6
+    H = lh * len(lines) + 8
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    for j, ln in enumerate(lines):
+        w = d.textlength(ln, font=font)
+        d.text(((W - w) / 2, 4 + j * lh), ln, font=font,
+               fill=spec["fill"], stroke_width=stroke, stroke_fill=spec["stroke"])
+    img.save(os.path.join(spec["dir"], f"cue-{i}.png"))
+print(json.dumps({"ok": True, "count": len(spec["cues"])}))
+`
+
 export const writeTemp = async (dir: string, name: string, body: string): Promise<string> => {
   const path = join(dir, name)
   await writeFile(path, body, 'utf8')
