@@ -33,6 +33,9 @@ export const providerError = (
 export const stateError = (message: string, hint?: string): DuanjuError =>
   new DuanjuError(message, 'E_STATE', hint)
 
+export const timeoutError = (message: string, hint?: string): DuanjuError =>
+  new DuanjuError(message, 'E_TIMEOUT', hint)
+
 export const budgetError = (message: string, hint?: string): DuanjuError =>
   new DuanjuError(message, 'E_BUDGET', hint)
 

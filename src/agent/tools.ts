@@ -3,6 +3,7 @@ import { loadSkill, selectSections } from '../lib/skillset.js'
 import { ToolRegistry } from './core.js'
 import type { App } from '../app.js'
 import type { Config, NormalizedStage } from '../kernel/config.js'
+import type { ProgressReporter } from '../kernel/health.js'
 import type { StagePort } from '../kernel/ports.js'
 import type { Logger } from '../kernel/ports.js'
 import type { Project } from '../kernel/types.js'
@@ -32,7 +33,11 @@ export const buildAgentTools = (
   config: Config,
   holder: ProjectHolder,
   log: Logger,
-  opts: { skillsDir: string; stageDefaults: Record<string, unknown> },
+  opts: {
+    skillsDir: string
+    stageDefaults: Record<string, unknown>
+    health?: { reporter?: ProgressReporter; stallTimeoutMs?: number }
+  },
 ): ToolRegistry => {
   const registry = new ToolRegistry()
 
@@ -86,6 +91,7 @@ export const buildAgentTools = (
         concurrency: config.concurrency,
         autoApprove: true,
         force: wanted,
+        health: opts.health,
         onProject: (p) => {
           holder.current = p
           app.setProject(p)

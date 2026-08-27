@@ -38,6 +38,7 @@ export default definePlugin<StagePort>({
       }
       log.info(`videos: generating ${pending.length} clips (concurrency ${limit})`)
 
+      let completed = 0
       const results = await mapPool(pending, limit, async (shot) => {
         const prompt = shot.videoPrompt ?? shot.plotDescription
 
@@ -101,6 +102,8 @@ export default definePlugin<StagePort>({
               label: shot.id,
             }),
         })
+        completed += 1
+        ctx.emit('progress', { item: completed, total: pending.length, note: shot.id })
         return { shotId: shot.id, clip }
       })
 

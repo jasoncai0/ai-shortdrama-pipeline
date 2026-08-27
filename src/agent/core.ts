@@ -108,6 +108,8 @@ export interface AgentRunOptions {
   readonly openingContext?: string
   /** Truncate a tool result to this many chars in the history the model sees. */
   readonly resultBudget?: number
+  /** Progress hook: fired once per turn with a short note. Liveness signal. */
+  onTurn?(turn: number, note: string): void
 }
 
 export interface AgentRunResult {
@@ -154,6 +156,7 @@ export const runAgent = async (options: AgentRunOptions): Promise<AgentRunResult
     })
 
     const turnData = result.data
+    options.onTurn?.(turn, 'tool' in turnData ? turnData.tool : 'done')
     await record({ turn, kind: 'thought', body: turnData.thought })
     log.info(`agent[${turn}]: ${turnData.thought.slice(0, 120)}`)
 

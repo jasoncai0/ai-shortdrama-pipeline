@@ -1,4 +1,6 @@
 import { capsError, describeError } from './errors.js'
+import { createWatchdog } from './health.js'
+import type { ProgressReporter } from './health.js'
 import type { NormalizedStage } from './config.js'
 import type { Logger, Ports, StageContext, StagePort } from './ports.js'
 import type { Project, StageState } from './types.js'
@@ -14,6 +16,12 @@ export interface RunOptions {
   /** Re-run these stage ids even if already marked done. */
   readonly force?: readonly string[]
   onEvent?(stage: string, event: string, payload?: unknown): void
+  /** Progress snapshot + stall detection. Both optional and non-invasive. */
+  readonly health?: {
+    readonly reporter?: ProgressReporter
+    /** Fail a stage when it emits no progress signal for this long. */
+    readonly stallTimeoutMs?: number
+  }
   /** Called whenever `project` advances, so middleware sees current state. */
   onProject?(project: Project): void
 }
@@ -76,6 +84,12 @@ export const runPipeline = async (
     )
     await opts.ports.state.save(project)
     opts.log.info(`stage ${entry.id}: start`)
+    opts.health?.reporter?.stageStart(entry.id)
+
+    const watchdog =
+      opts.health?.stallTimeoutMs && opts.health.stallTimeoutMs > 0
+        ? createWatchdog(opts.health.stallTimeoutMs)
+        : undefined
 
     const ctx: StageContext = {
       project,
@@ -85,11 +99,23 @@ export const runPipeline = async (
       concurrency: opts.concurrency,
       autoApprove: opts.autoApprove,
       limitShots: opts.limitShots,
-      emit: (event, payload) => opts.onEvent?.(entry.id, event, payload),
+      emit: (event, payload) => {
+        // Every stage event doubles as a liveness signal.
+        watchdog?.beat()
+        const info = payload as { item?: number; total?: number; note?: string } | undefined
+        if (event === 'progress' && info) {
+          opts.health?.reporter?.tick(entry.id, info)
+        } else {
+          opts.health?.reporter?.beat()
+        }
+        opts.onEvent?.(entry.id, event, payload)
+      },
     }
 
     try {
-      const outcome = await stage.run(ctx)
+      const outcome = watchdog
+        ? await watchdog.guard(`stage ${entry.id}`, stage.run(ctx))
+        : await stage.run(ctx)
       if (outcome.kind === 'awaiting-input') {
         project = advance(
           withStageState(outcome.project, entry.id, {
@@ -115,8 +141,12 @@ export const runPipeline = async (
       project = advance(completed)
       await opts.ports.state.save(project)
       opts.log.info(`stage ${entry.id}: done`)
+      opts.health?.reporter?.stageDone(entry.id)
     } catch (error) {
       const message = describeError(error)
+      const stalled =
+        typeof error === 'object' && error !== null && (error as { code?: string }).code === 'E_TIMEOUT'
+      opts.health?.reporter?.stageFailed(entry.id, message, stalled)
       project = withStageState(project, entry.id, {
         status: 'failed',
         finishedAt: new Date().toISOString(),

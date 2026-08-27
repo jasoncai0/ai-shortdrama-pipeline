@@ -61,6 +61,17 @@ export const configSchema = z.object({
       refs: z.number().int().min(1).max(16).default(3),
     })
     .default({ images: 3, videos: 2, refs: 3 }),
+  health: z
+    .object({
+      /**
+       * Fail a stage that emits no progress signal for this long instead of
+       * blocking the run forever. 0 disables the watchdog. Default 15 min —
+       * generous enough for a blocking video render, short enough that a hung
+       * provider call is surfaced the same evening it happens.
+       */
+      stallTimeoutMs: z.number().int().min(0).default(900_000),
+    })
+    .default({ stallTimeoutMs: 900_000 }),
   budget: z
     .object({
       maxCredits: z.number().min(0).default(0),

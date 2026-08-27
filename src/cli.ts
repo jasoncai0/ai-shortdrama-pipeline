@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 import { buildApp } from './app.js'
 import { loadConfig } from './kernel/config.js'
 import { configError, describeError } from './kernel/errors.js'
+import { createProgressReporter, isPidAlive, readProgress } from './kernel/health.js'
 import { createLogger, type LogLevel } from './kernel/logger.js'
 import { assertCaps, runPipeline } from './kernel/pipeline.js'
 import { DEFAULT_CONFIG } from './default-config.js'
@@ -12,6 +13,8 @@ import type { App } from './app.js'
 import type { Config } from './kernel/config.js'
 import type { Logger } from './kernel/ports.js'
 import type { AspectRatio, Project, ProjectKind } from './kernel/types.js'
+
+const PROGRESS_ROOT = './.duanju/progress'
 
 const USAGE = `duanju — plugin-based AI short-drama pipeline
 
@@ -21,6 +24,7 @@ Usage:
   duanju resume <projectId> [options]      continue past a gate / after a failure
   duanju stage <projectId> <stageId>       force-rerun one stage
   duanju status [projectId]                list projects / show one
+  duanju progress <projectId>              live progress + health of a running pipeline
   duanju plugins                           list available plugins per port
   duanju agent --goal "<text>" [--project <id>]   LLM-driven creative director
 
@@ -58,6 +62,8 @@ const main = async (argv: readonly string[]): Promise<number> => {
       return stageCommand(args, log)
     case 'status':
       return statusCommand(args, log)
+    case 'progress':
+      return progressCommand(args, log)
     case 'plugins':
       return pluginsCommand(args, log)
     case 'agent':
@@ -165,6 +171,49 @@ const stageCommand = async (args: Args, log: Logger): Promise<number> => {
   return execute(app, config, project, args, log, [stageId])
 }
 
+const progressCommand = async (args: Args, log: Logger): Promise<number> => {
+  const projectId = args.positional[1]
+  if (!projectId) {
+    log.error('usage: duanju progress <projectId>')
+    return 2
+  }
+  const snap = await readProgress(PROGRESS_ROOT, projectId)
+  if (!snap) {
+    log.error(`no progress recorded for ${projectId} (has a run started?)`)
+    return 1
+  }
+  const beatAgeS = Math.round((Date.now() - Date.parse(snap.heartbeatAt)) / 1000)
+  const alive = isPidAlive(snap.pid)
+  // A "running" snapshot whose process is gone is a crash, not progress.
+  const health =
+    snap.status === 'running' && !alive
+      ? 'dead (process exited mid-stage)'
+      : snap.status === 'running'
+        ? `alive (last heartbeat ${beatAgeS}s ago)`
+        : snap.status
+  out(
+    JSON.stringify(
+      {
+        projectId: snap.projectId,
+        stage: snap.stage,
+        status: snap.status,
+        progress: snap.total ? `${snap.item ?? 0}/${snap.total}` : undefined,
+        note: snap.note,
+        error: snap.error,
+        pid: snap.pid,
+        pidAlive: alive,
+        heartbeatAgeSeconds: beatAgeS,
+        health,
+        startedAt: snap.startedAt,
+        updatedAt: snap.updatedAt,
+      },
+      null,
+      2,
+    ),
+  )
+  return 0
+}
+
 const statusCommand = async (args: Args, log: Logger): Promise<number> => {
   const config = await loadConfig(configPath(args))
   const app = await buildApp(config, log, process.cwd())
@@ -264,9 +313,11 @@ const agentCommand = async (args: Args, log: Logger): Promise<number> => {
   app.setProject(project)
   const holder = { current: project }
 
+  const reporter = createProgressReporter({ root: PROGRESS_ROOT, projectId: holder.current.id, log })
   const skillsDir = typeof args.flags['skills'] === 'string' ? args.flags['skills'] : './skills'
   const tools = buildAgentTools(app, config, holder, log, {
     skillsDir,
+    health: { reporter, stallTimeoutMs: config.health.stallTimeoutMs },
     stageDefaults: {
       episodes: numberFlag(args.flags['episodes']) ?? 1,
       shotsPerEpisode: numberFlag(args.flags['shots']) ?? config.defaults.shotsPerEpisode,
@@ -302,8 +353,11 @@ const agentCommand = async (args: Args, log: Logger): Promise<number> => {
     sessionFile,
     maxTurns: numberFlag(args.flags['max-turns']) ?? 16,
     openingContext,
+    onTurn: (turn, note) => reporter.tick('agent', { item: turn, note }),
   })
 
+  reporter.stageDone('agent')
+  await reporter.close()
   await app.ports.state.save(holder.current)
   out(JSON.stringify({ projectId: holder.current.id, done: result.done, turns: result.turns, summary: result.summary }, null, 2))
   return result.done ? 0 : 1
@@ -336,6 +390,7 @@ const execute = async (
     options: { ...stageDefaults, ...s.options },
   }))
 
+  const reporter = createProgressReporter({ root: PROGRESS_ROOT, projectId: project.id, log })
   const result = await runPipeline(project, {
     stages,
     plugins: app.stagePlugins,
@@ -346,8 +401,17 @@ const execute = async (
     limitShots: numberFlag(args.flags['limit-shots']),
     force,
     onProject: (next) => app.setProject(next),
-    onEvent: (stage, event, payload) => log.debug(`event ${stage}/${event}`, payload),
+    onEvent: (stage, event, payload) => {
+      if (event === 'progress') {
+        const info = payload as { item?: number; total?: number; note?: string }
+        log.info(`${stage}: ${info.item}/${info.total}${info.note ? ` (${info.note})` : ''}`)
+      } else {
+        log.debug(`event ${stage}/${event}`, payload)
+      }
+    },
+    health: { reporter, stallTimeoutMs: config.health.stallTimeoutMs },
   })
+  await reporter.close()
 
   switch (result.kind) {
     case 'complete':

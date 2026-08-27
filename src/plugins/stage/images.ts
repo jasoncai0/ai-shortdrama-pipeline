@@ -37,6 +37,7 @@ export default definePlugin<StagePort>({
       }
       log.info(`images: generating ${pending.length} stills (concurrency ${limit})`)
 
+      let completed = 0
       const results = await mapPool(pending, limit, async (shot) => {
         const prompt = shot.imagePrompt
         if (!prompt) throw new Error(`shot ${shot.id} has no imagePrompt`)
@@ -67,6 +68,8 @@ export default definePlugin<StagePort>({
               label: shot.id,
             }),
         })
+        completed += 1
+        ctx.emit('progress', { item: completed, total: pending.length, note: shot.id })
         return { shotId: shot.id, still }
       })
 
