@@ -112,3 +112,21 @@ describe('aspect ratio is never guessed', () => {
     expect(DEFAULT_CONFIG.defaults).not.toHaveProperty('ratio')
   })
 })
+
+describe('SRT markup never reaches the picture', () => {
+  test('an <i> cue is stripped and flagged as narration', async () => {
+    const { parseSrt } = await import('../src/plugins/post/ffmpeg.js')
+    const cues = parseSrt('1\n00:00:00,000 --> 00:00:02,000\n<i>三个月前。</i>\n')
+
+    expect(cues[0]?.text).toBe('三个月前。')
+    expect(cues[0]?.italic).toBe(true)
+  })
+
+  test('a plain dialogue cue is untouched', async () => {
+    const { parseSrt } = await import('../src/plugins/post/ffmpeg.js')
+    const cues = parseSrt('1\n00:00:00,000 --> 00:00:02,000\n陈母李氏：跪下。\n')
+
+    expect(cues[0]?.text).toBe('陈母李氏：跪下。')
+    expect(cues[0]?.italic).toBe(false)
+  })
+})

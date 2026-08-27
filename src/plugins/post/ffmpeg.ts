@@ -438,6 +438,8 @@ interface SrtCue {
   readonly start: number
   readonly end: number
   readonly text: string
+  /** The cue was marked <i> — narration, in this pipeline's SRT. */
+  readonly italic: boolean
 }
 
 const srtTime = (t: string): number => {
@@ -455,12 +457,17 @@ export const parseSrt = (srt: string): readonly SrtCue[] =>
       const timing = lines.find((l) => l.includes('-->'))
       if (!timing) return []
       const [from, to] = timing.split('-->').map((x) => x.trim())
-      const text = lines
+      const raw = lines
         .slice(lines.indexOf(timing) + 1)
         .join('\n')
         .trim()
+      // SRT markup is instructions to a renderer, not words. libass would
+      // honour <i>; Pillow would paint the angle brackets, so it is stripped
+      // here and carried as a flag for the renderer to style narration by.
+      const italic = /<i>/.test(raw)
+      const text = raw.replace(/<\/?[a-z]+>/g, '').trim()
       if (!text || !from || !to) return []
-      return [{ start: srtTime(from), end: srtTime(to), text }]
+      return [{ start: srtTime(from), end: srtTime(to), text, italic }]
     })
 
 /** Fonts that hold CJK glyphs, most specific first. */
@@ -515,8 +522,11 @@ const burnViaOverlay = async (args: {
       fontPx: Math.round((args.style.fontSize / 22) * (width / 14)),
       fonts: CJK_FONTS,
       fill: args.style.primaryColour,
+      // CJK has no meaningful italic; narration reads as narration through a
+      // warm off-white instead, matching the intro cards' parchment tone.
+      narrationFill: '#F0E4C0',
       stroke: args.style.outlineColour,
-      cues: cues.map((c) => c.text),
+      cues: cues.map((c) => ({ text: c.text, narration: c.italic })),
     })}\n`,
   })
   if (render.code !== 0) {
@@ -596,7 +606,9 @@ def wrap(text, draw):
 
 probe_img = Image.new("RGBA", (W, 10))
 probe_draw = ImageDraw.Draw(probe_img)
-for i, text in enumerate(spec["cues"]):
+for i, cue in enumerate(spec["cues"]):
+    text = cue["text"]
+    fill = spec["narrationFill"] if cue["narration"] else spec["fill"]
     lines = wrap(text, probe_draw)
     lh = spec["fontPx"] + stroke * 2 + 6
     H = lh * len(lines) + 8
@@ -605,7 +617,7 @@ for i, text in enumerate(spec["cues"]):
     for j, ln in enumerate(lines):
         w = d.textlength(ln, font=font)
         d.text(((W - w) / 2, 4 + j * lh), ln, font=font,
-               fill=spec["fill"], stroke_width=stroke, stroke_fill=spec["stroke"])
+               fill=fill, stroke_width=stroke, stroke_fill=spec["stroke"])
     img.save(os.path.join(spec["dir"], f"cue-{i}.png"))
 print(json.dumps({"ok": True, "count": len(spec["cues"])}))
 `
