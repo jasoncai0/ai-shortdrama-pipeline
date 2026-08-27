@@ -222,6 +222,8 @@ export interface Project {
   /** Feed cover (3:4). Separate from finalCut: different ratio, different job. */
   readonly cover?: AssetRef
   readonly coverVariants?: readonly AssetRef[]
+  /** Typeset covers: series poster first, then one per episode. */
+  readonly posters?: readonly AssetRef[]
   readonly music?: MusicTrack
   /** Rejected candidates, kept so a re-pick needs no new search or generation. */
   readonly musicCandidates?: readonly MusicTrack[]

@@ -58,6 +58,7 @@ export const builtins: BuiltinTable = {
   'stage/sheets': () => import('./stage/sheets.js'),
   'stage/wardrobe': () => import('./stage/wardrobe.js'),
   'stage/cover': () => import('./stage/cover.js'),
+  'stage/cover-typeset': () => import('./stage/cover-typeset.js'),
   'stage/shots': () => import('./stage/shots.js'),
   'stage/camera-check': () => import('./stage/camera-check.js'),
   'stage/prompts': () => import('./stage/prompts.js'),
