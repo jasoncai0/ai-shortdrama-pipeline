@@ -637,26 +637,43 @@ if font is None:
     sys.exit(1)
 
 W = spec["width"]
-safe = int(W * 0.9)
-stroke = max(2, spec["fontPx"] // 12)
+safe = int(W * spec.get("safeRatio", 0.78))
+max_lines = spec.get("maxLines", 2)
+font_path = next(p for p in spec["fonts"] if os.path.exists(p))
 
-def wrap(text, draw):
+def load(px):
+    return ImageFont.truetype(font_path, px)
+
+def wrap(text, draw, fnt):
     lines, line = [], ""
     for ch in text.replace("\n", ""):
         probe = line + ch
-        if draw.textlength(probe, font=font) > safe and line:
+        if draw.textlength(probe, font=fnt) > safe and line:
             lines.append(line); line = ch
         else:
             line = probe
     if line: lines.append(line)
     return lines or [""]
 
+def fit(text, draw, px):
+    # A cue must fit max_lines; type shrinks (never below 60%) before words
+    # would ever be dropped — losing dialogue is worse than smaller type.
+    floor = int(px * 0.6)
+    while px > floor:
+        fnt = load(px)
+        lines = wrap(text, draw, fnt)
+        if len(lines) <= max_lines:
+            return fnt, lines, px
+        px = int(px * 0.88)
+    fnt = load(px)
+    return fnt, wrap(text, draw, fnt), px
+
 probe_img = Image.new("RGBA", (W, 10))
 probe_draw = ImageDraw.Draw(probe_img)
 for i, cue in enumerate(spec["cues"]):
     text = cue["text"]
     fill = spec["narrationFill"] if cue["narration"] else spec["fill"]
-    lines, fnt, px = fit(text, probe_draw)
+    fnt, lines, px = fit(text, probe_draw, spec["fontPx"])
     stroke = max(2, px // 12)
     lh = px + stroke * 2 + 6
     H = lh * len(lines) + 8

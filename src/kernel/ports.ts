@@ -352,6 +352,16 @@ export interface SubtitleStyle {
   readonly primaryColour: string
   readonly outlineColour: string
   readonly fontName?: string
+  /** Hard cap on rendered lines per cue; the renderer shrinks type to fit. */
+  readonly maxLines?: number
+  /** Text block width as a fraction of the frame (default 0.78). */
+  readonly maxWidthRatio?: number
+  /**
+   * Bottom clearance as a fraction of frame height (default 0.16). Short-video
+   * players draw their own UI over the bottom of the frame, so a subtitle
+   * sitting on the edge is a subtitle behind a progress bar.
+   */
+  readonly bottomOffsetRatio?: number
 }
 
 export interface VoiceMixOptions {
