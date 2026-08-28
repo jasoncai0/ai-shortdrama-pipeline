@@ -52,7 +52,7 @@ export const buildAgentTools = (
   registry.register({
     name: 'run_stages',
     description:
-      '按顺序运行一个或多个管线 stage。可用: plan, assets, refs, wardrobe, sheets, shots, camera-check, prompts, images, videos, dub, export, music, intro-cards, subtitles, cover。gate 类 stage 由人负责，不给 agent。',
+      '按顺序运行一个或多个管线 stage。可用: plan, assets, refs, wardrobe, sheets, shots, camera-check, voice-check, prompts, images, videos, dub, export, music, intro-cards, subtitles, cover。gate 类 stage 由人负责，不给 agent。',
     args: { stages: '字符串数组，如 ["plan","assets"]', options: '可选，按 stage 名给参数，如 {"wardrobe":{"looksPerLead":3}}' },
     run: async (args) => {
       const wanted = Array.isArray(args['stages'])

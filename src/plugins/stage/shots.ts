@@ -26,6 +26,7 @@ const shotsSchema = z.object({
         lightingAndAtmosphere: z.string().optional(),
         audioEffects: z.string().optional(),
         dialogue: z.string().optional(),
+        narration: z.string().optional(),
         characterNames: z.array(z.string()).default([]),
         sceneName: z.string().optional(),
         propNames: z.array(z.string()).default([]),
@@ -37,7 +38,12 @@ const shotsSchema = z.object({
 const SYSTEM = `你是分镜师。输出严格 JSON，无解释、无代码围栏。
 characterNames / sceneName / propNames 必须**逐字**使用给定清单里的名字，不要发明新名字、不要改写。
 shotSize 用景别术语（extreme close-up / close-up / medium shot / wide shot / establishing shot）。
-cameraMove 用运镜术语（static / slow dolly-in / pan left / handheld follow / crane up）。`
+cameraMove 用运镜术语（static / slow dolly-in / pan left / handheld follow / crane up）。
+
+声音纪律（硬性约束）：
+- 叙事优先走 dialogue（角色台词）和画面动作；有台词的镜头，characterNames 第一个必须是说话人。
+- narration（旁白）只在转场、时间跳跃、地点切换时用，一两句即可；全片旁白镜头不得超过约 30%，绝不能每镜都有旁白。
+- 不要连续超过 2 个镜头使用旁白；旁白和台词不要复述同一信息。`
 
 export default definePlugin<StagePort>({
   port: 'stage',
@@ -117,6 +123,7 @@ export default definePlugin<StagePort>({
             lightingAndAtmosphere: raw.lightingAndAtmosphere,
             audioEffects: raw.audioEffects,
             dialogue: raw.dialogue,
+            narration: raw.narration,
             characterIds,
             sceneId: raw.sceneName ? sceneByName.get(raw.sceneName) : undefined,
             propIds: propNames

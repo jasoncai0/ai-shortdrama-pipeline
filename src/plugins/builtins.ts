@@ -61,6 +61,7 @@ export const builtins: BuiltinTable = {
   'stage/cover-typeset': () => import('./stage/cover-typeset.js'),
   'stage/shots': () => import('./stage/shots.js'),
   'stage/camera-check': () => import('./stage/camera-check.js'),
+  'stage/voice-check': () => import('./stage/voice-check.js'),
   'stage/prompts': () => import('./stage/prompts.js'),
   'stage/images': () => import('./stage/images.js'),
   'stage/videos': () => import('./stage/videos.js'),

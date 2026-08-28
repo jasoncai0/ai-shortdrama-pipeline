@@ -4,6 +4,7 @@ import { findCharacter } from '../../kernel/types.js'
 import { mapPool } from '../../lib/pool.js'
 import { describeError } from '../../kernel/errors.js'
 import { billedGenerate, summarize } from './shared.js'
+import { validateVoiceCasting } from '../../lib/voice.js'
 import type { StagePort } from '../../kernel/ports.js'
 import type { AssetRef, Shot } from '../../kernel/types.js'
 
@@ -32,6 +33,9 @@ import type { AssetRef, Shot } from '../../kernel/types.js'
  *   bedGainDb       clip's own audio while the voice plays, default -12
  *   padToVoice      hold the last frame when a line outruns the shot (default false)
  *   includeNarration speak `shot.narration` too (default true)
+ *   strictCasting   fail when casting rules are violated (default true):
+ *                   narration without a dedicated narratorVoice, or a
+ *                   character cast on the narrator's timbre
  *   splitOnFailure  when a whole line wedges the provider, say it in clauses
  *                   and join the takes (default true). Some phrasings hang a
  *                   provider's moderation path indefinitely while each clause
@@ -66,6 +70,23 @@ export default definePlugin<StagePort>({
       const splitOnFailure = ctx.options['splitOnFailure'] !== false
       const narratorVoice = asString(ctx.options['narratorVoice'])
       const limit = Math.min(2, ports.speech.caps.maxConcurrency)
+
+      // Casting rules are hard constraints, checked before anything is spent:
+      // narration requires its own timbre, and no character may borrow it.
+      const casting = validateVoiceCasting({
+        characters: project.characters,
+        // With includeNarration off, narration is never synthesised here, so
+        // the narrator-timbre requirement does not apply to this run.
+        shots: includeNarration
+          ? project.shots
+          : project.shots.map((s) => ({ ...s, narration: undefined })),
+        voices,
+        narratorVoice,
+      })
+      if (casting.errors.length > 0 && ctx.options['strictCasting'] !== false) {
+        throw new Error(`dub: 声音约束不满足 — ${casting.errors.join(' | ')}`)
+      }
+      for (const w of casting.warnings) log.warn(`dub: ${w}`)
 
       const uncast = new Set<string>()
 

@@ -3,6 +3,7 @@ import { isAbsolute, join, resolve } from 'node:path'
 import { definePlugin } from '../../kernel/registry.js'
 import { findCharacter, findProp, findScene } from '../../kernel/types.js'
 import type { CompiledPrompt, PromptStrategyPort } from '../../kernel/ports.js'
+import { speechCue } from '../../lib/voice.js'
 import type { Project, Shot } from '../../kernel/types.js'
 
 /**
@@ -99,6 +100,9 @@ export const buildVars = (shot: Shot, project: Project): Record<string, string> 
     lightingAndAtmosphere: shot.lightingAndAtmosphere ?? '',
     audioEffects: shot.audioEffects ?? '',
     dialogue: shot.dialogue ?? '',
+    narration: shot.narration ?? '',
+    // Lip-sync discipline: who is (or is not) visibly speaking in frame.
+    speechCue: speechCue(shot, characters[0]?.name),
     duration: String(shot.durationSeconds),
   }
 }

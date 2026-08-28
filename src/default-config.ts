@@ -61,6 +61,7 @@ export const DEFAULT_CONFIG = {
     { id: 'gate-assets', use: 'gate', options: { label: 'assets', prompt: '确认资产清单？' } },
     'shots',
     'camera-check',
+    'voice-check',
     'prompts',
     'images',
     'videos',

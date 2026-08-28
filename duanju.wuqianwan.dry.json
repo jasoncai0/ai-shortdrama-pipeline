@@ -1,0 +1,197 @@
+{
+  "ports": {
+    "llm": {
+      "impl": "stub",
+      "options": {
+        "seed": "unused-import-script-needs-no-llm"
+      }
+    },
+    "image": {
+      "impl": "stub",
+      "options": {}
+    },
+    "video": {
+      "impl": "stub",
+      "options": {}
+    },
+    "assetStore": {
+      "impl": "localfs",
+      "options": {
+        "root": "./.wuqianwan-dry/assetStore"
+      }
+    },
+    "state": {
+      "impl": "localjson",
+      "options": {
+        "root": "./.wuqianwan-dry/state"
+      }
+    },
+    "ledger": {
+      "impl": "noop",
+      "options": {}
+    },
+    "export": {
+      "impl": "ffmpeg",
+      "options": {
+        "fps": 24,
+        "crf": 20
+      }
+    },
+    "promptStrategy": {
+      "impl": "skill-anchored",
+      "options": {
+        "dir": "./prompts",
+        "profileDir": "./prompts/profiles",
+        "profile": "photoreal-drama"
+      }
+    }
+  },
+  "middleware": [
+    {
+      "impl": "retry",
+      "options": {
+        "attempts": 2,
+        "baseDelayMs": 5000
+      }
+    },
+    {
+      "impl": "camera-grammar",
+      "options": {
+        "appendClauses": [
+          "oneDominantMove"
+        ]
+      }
+    },
+    {
+      "impl": "prompt-tune",
+      "options": {
+        "image": {
+          "suffix": "现代都市写实, 冷色调低饱和, 无文字无水印"
+        },
+        "video": {
+          "suffix": "运镜平稳克制, 24fps"
+        },
+        "negativePrompt": "text, watermark, subtitles, logo, distorted hands, extra fingers"
+      }
+    }
+  ],
+  "pipeline": [
+    {
+      "id": "import-script",
+      "options": {
+        "file": "./scripts/wuqianwan.screenplay.md",
+        "episodes": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "maxShotsPerEpisode": 5,
+        "includeNarration": true,
+        "styleGuide": "现代都市情感剧, 电影级构图, 冷色调低饱和, 自然光实景, 浅景深, 胶片质感, 写实克制",
+        "characterAliases": {
+          "顾深": [
+            "男主",
+            "年轻的顾深"
+          ],
+          "江离": [
+            "女主"
+          ],
+          "周岚": [
+            "助理"
+          ],
+          "清洁工玛尔塔": [
+            "玛尔塔",
+            "清洁工"
+          ]
+        },
+        "characterVisuals": {
+          "顾深": "三十八岁中国男子, 短发利落, 面容清瘦冷峻, 细长单眼皮, 身形挺拔, 黑色高领毛衣配深灰色西装外套, 神情克制内敛, 眼神沉静",
+          "江离": "三十六岁中国女子, 乌黑及腰长直发, 鹅蛋脸清冷绝美, 皮肤白皙, 身形高挑纤瘦, 黑色垂坠长裙, 眼神疏离带一丝倦意",
+          "周岚": "三十岁中国女子, 利落低马尾, 黑框眼镜, 深色西装套装, 姿态干练, 神情冷静专业",
+          "清洁工玛尔塔": "五十岁拉美裔女子, 深色头发盘起, 灰色酒店客房服务制服, 面容温和有细纹, 动作沉稳熟练"
+        },
+        "sceneVisuals": {
+          "海崖酒店走廊": "现代奢华海崖酒店长走廊, 一侧落地窗外是太平洋, 米色大理石地面, 走廊空无一人, 白昼自然光",
+          "海崖酒店露台": "悬崖顶酒店私人露台, 面朝辽阔大海, 石质栏杆, 黄昏金色逆光, 海风",
+          "大学宿舍": "2007年中国大学八人间宿舍, 上下铺铁架床, 书桌上一台老旧笔记本电脑, 昏暗台灯, 杂物拥挤",
+          "城市天台": "冬夜写字楼天台, 远处城市灯海, 冷蓝色调, 呵气成霜",
+          "云端酒店套房": "顶层豪华酒店套房, 巨大落地窗外是城市天际线, 米色布艺沙发, 柔和室内光",
+          "美术馆展厅": "空旷极简当代美术馆展厅, 纯白墙面, 一件用银色胶带贴着香蕉的装置艺术, 顶部射灯",
+          "电影院门口": "夜晚电影院门口, 霓虹灯牌, 玻璃售票厅, 零星观众",
+          "放映厅": "巨大空旷的电影放映厅, 数百个空座位, 只有中间两人, 银幕光影明灭",
+          "私人飞机卧室": "公务机私人卧室舱, 米色真皮内饰, 舷窗外云海, 柔和舱内光",
+          "海岛酒店房间": "热带海岛酒店房间, 整面落地窗被黑色胶带一条条贴满, 外面透进刺眼白光, 室内昏暗",
+          "海岛山顶": "夜晚海岛山顶, 低垂璀璨星空银河, 黑色岩石, 远处海面微光",
+          "海岛酒店露台": "凌晨海岛酒店露台, 漆黑的海面, 没有灯光, 天边微微泛蓝",
+          "海岛餐厅": "海岛度假酒店露天餐厅, 温暖烛光, 藤编桌椅, 客人稀少, 夜晚",
+          "城市医院外": "清晨大型医院正门台阶, 天蒙蒙亮, 冷清无人, 冷灰色调",
+          "顾深书房": "现代极简书房, 落地窗外凌晨城市天际线, 黑暗中只有电脑屏幕的冷光, 一人独坐"
+        },
+        "props": [
+          {
+            "name": "指甲工具袋",
+            "description": "一个小巧的黑色拉链袋, 拉开后一排精致的磨甲小工具"
+          },
+          {
+            "name": "黑色胶带",
+            "description": "宽幅黑色遮光胶带卷"
+          },
+          {
+            "name": "现金",
+            "description": "一沓沓崭新的百元现金"
+          }
+        ],
+        "shotSeconds": 5
+      }
+    },
+    {
+      "id": "camera-check",
+      "needs": [
+        "import-script"
+      ],
+      "options": {}
+    },
+    {
+      "id": "refs",
+      "needs": [
+        "import-script"
+      ],
+      "options": {}
+    },
+    {
+      "id": "gate-characters",
+      "use": "gate",
+      "options": {
+        "label": "characters",
+        "prompt": "角色设定图已生成，确认后继续生成分镜图与视频？"
+      }
+    },
+    {
+      "id": "prompts",
+      "needs": [
+        "import-script"
+      ],
+      "options": {}
+    },
+    "images",
+    "videos",
+    "export"
+  ],
+  "concurrency": {
+    "images": 3,
+    "videos": 2,
+    "refs": 3
+  },
+  "budget": {
+    "maxCredits": 0,
+    "failFast": false
+  },
+  "defaults": {
+    "ratio": "9:16",
+    "kind": "shortdrama",
+    "shotSeconds": 5,
+    "shotsPerEpisode": 5
+  }
+}

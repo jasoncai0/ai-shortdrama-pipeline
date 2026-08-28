@@ -61,10 +61,15 @@ export default definePlugin<PromptStrategyPort>({
 
         const videoPrompt = joinPrompt(render(videoTmpl, vars))
 
+        // A narration-only shot must not show anyone mouthing the narrator's
+        // words — the voice-over belongs to no one on screen.
+        const narrationOnly =
+          !shot.dialogue?.trim() && Boolean(shot.narration?.trim()) && shot.characterIds.length > 0
         const profileNegatives = joinPrompt(
           profile?.negatives.shared,
           profile?.negatives.photoreal,
           profile?.negatives.keyframe,
+          narrationOnly ? 'talking, speaking, moving lips, open mouth mid-speech' : undefined,
         )
         const negativePrompt = negativeOverride ?? (profileNegatives || undefined)
 
