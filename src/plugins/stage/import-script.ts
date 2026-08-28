@@ -159,6 +159,7 @@ export default definePlugin<StagePort>({
       const includeNarration = options['includeNarration'] === true
       const attachNarration = options['attachNarration'] !== false
       let narrationInsertCount = 0
+      let droppedNarrationCount = 0
       let transitionInsertCount = 0
       let suppressedTransitions = 0
 
@@ -272,6 +273,9 @@ export default definePlugin<StagePort>({
                 narrationCharBudget: numberOption(options['narrationCharBudget'], 60),
                 transitionInserts: options['transitionInserts'] !== false,
                 maxInsertRatio: numberOption(options['maxInsertRatio'], 0.4),
+                narrationPlacement:
+                  options['narrationPlacement'] === 'hosted' ? 'hosted' : 'inserts',
+                maxNarrationPerScene: numberOption(options['maxNarrationPerScene'], 2),
               },
             )
           : undefined
@@ -311,6 +315,7 @@ export default definePlugin<StagePort>({
           narrationInsertCount += paced.narrationInserts
           transitionInsertCount += paced.transitionInserts
           suppressedTransitions += paced.suppressed
+          droppedNarrationCount += paced.droppedNarration
         }
 
         const capped = maxShots > 0 ? spread.slice(0, maxShots) : spread
@@ -390,6 +395,7 @@ export default definePlugin<StagePort>({
 
       deps.log.info(
         `import-script: pacing — ${narrationInsertCount} 旁白留白镜, ${transitionInsertCount} 转场空镜` +
+          (droppedNarrationCount > 0 ? `, ${droppedNarrationCount} 条旁白被每场景上限裁掉` : '') +
           (suppressedTransitions > 0 ? `, ${suppressedTransitions} 处场景切换未加转场(受 maxInsertRatio 限制)` : ''),
       )
       // Coverage pass: sizes, moves, and two-person dialogue framing. Runs

@@ -132,7 +132,7 @@ export default definePlugin<StagePort>({
         cut,
         asset,
         {
-          musicGainDb: numberOption(ctx.options['musicGainDb'], -14),
+          musicGainDb: numberOption(ctx.options['musicGainDb'], -20),
           fadeInSeconds: numberOption(ctx.options['fadeInSeconds'], 1.5),
           fadeOutSeconds: numberOption(ctx.options['fadeOutSeconds'], 2),
           loop: ctx.options['loop'] !== false,

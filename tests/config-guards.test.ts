@@ -140,3 +140,27 @@ describe('episode ordering', () => {
     expect(sorted).toEqual(['ep1', 'ep2', 'ep9', 'ep10'])
   })
 })
+
+describe('long cues take turns instead of filling the frame', () => {
+  test('a long line splits at punctuation, none of it lost', async () => {
+    const { splitCueText } = await import('../src/plugins/post/ffmpeg.js')
+    const text = '瑜之真是长大了,竟知道这样说话,再不是当年那个懵懂童子了。这笛嫂子可不能要——也不知是哪个高士送给你的。'
+    const parts = splitCueText(text)
+
+    expect(parts.length).toBeGreaterThan(1)
+    expect(parts.join('')).toBe(text)
+    for (const part of parts) expect(part.length).toBeLessThanOrEqual(32)
+  })
+
+  test('a short line stays one cue', async () => {
+    const { splitCueText } = await import('../src/plugins/post/ffmpeg.js')
+    expect(splitCueText('娘。')).toEqual(['娘。'])
+  })
+
+  test('a wall of text with no punctuation is still capped', async () => {
+    const { splitCueText } = await import('../src/plugins/post/ffmpeg.js')
+    const parts = splitCueText('字'.repeat(80))
+    expect(parts.join('')).toBe('字'.repeat(80))
+    for (const part of parts) expect(part.length).toBeLessThanOrEqual(32)
+  })
+})

@@ -220,7 +220,7 @@ export default definePlugin<PostPort>({
           ? opts.duckUnderDialogue
             ? // Sidechain compression: the picture's own audio pushes the score
               // down while anyone is speaking, and lets it back up in the gaps.
-              `[1:a]${musicChain}[m];[m][0:a]sidechaincompress=threshold=0.05:ratio=8:attack=20:release=400[duck];[duck][0:a]amix=inputs=2:duration=first:dropout_transition=0[a]`
+              `[1:a]${musicChain}[m];[m][0:a]sidechaincompress=threshold=0.03:ratio=12:attack=15:release=500[duck];[duck][0:a]amix=inputs=2:duration=first:dropout_transition=0[a]`
             : `[1:a]${musicChain}[m];[m][0:a]amix=inputs=2:duration=first:dropout_transition=0[a]`
           : `[1:a]${musicChain}[a]`
 
@@ -263,13 +263,24 @@ export default definePlugin<PostPort>({
         for (const clip of clips) {
           const seconds = await probeSeconds(await store.localPath(clip.ref))
           if (clip.cue?.text?.trim()) {
-            measured.push({
-              start: offset,
-              end: offset + seconds,
-              text: clip.cue.text.trim(),
-              kind: clip.cue.kind,
-              speaker: clip.cue.speaker,
-            })
+            // A 60-character line as one cue fills a third of a vertical
+            // frame. Long cues split at punctuation into sequential cues,
+            // each shown for a share of the clip proportional to its length —
+            // nothing is dropped, it just takes turns.
+            const parts = splitCueText(clip.cue.text.trim())
+            const total = parts.reduce((n, t) => n + t.length, 0)
+            let at = offset
+            for (const part of parts) {
+              const span = seconds * (part.length / total)
+              measured.push({
+                start: at,
+                end: at + span,
+                text: part,
+                kind: clip.cue.kind,
+                speaker: clip.cue.speaker,
+              })
+              at += span
+            }
           }
           offset += seconds
         }
@@ -470,6 +481,41 @@ export const parseSrt = (srt: string): readonly SrtCue[] =>
       return [{ start: srtTime(from), end: srtTime(to), text, italic }]
     })
 
+/**
+ * Longest text one on-screen cue may carry. Beyond it, the cue takes turns.
+ *
+ * 32 CJK glyphs is two comfortable lines at the default size on a 720-wide
+ * vertical frame; three-plus lines start hiding the picture the subtitle is
+ * supposed to serve.
+ */
+const MAX_CUE_CHARS = 32
+
+export const splitCueText = (text: string): readonly string[] => {
+  if (text.length <= MAX_CUE_CHARS) return [text]
+  // Split at sentence punctuation first; greedily refill so pieces stay as
+  // close to the cap as possible without crossing it.
+  const atoms = text.split(/(?<=[。！？；!?;，,])/).filter((a) => a.length > 0)
+  const parts: string[] = []
+  let current = ''
+  for (const atom of atoms) {
+    if (current && current.length + atom.length > MAX_CUE_CHARS) {
+      parts.push(current)
+      current = atom
+    } else {
+      current += atom
+    }
+  }
+  if (current) parts.push(current)
+  // An atom longer than the cap (no punctuation at all) is hard-wrapped.
+  return parts.flatMap((part) =>
+    part.length <= MAX_CUE_CHARS
+      ? [part]
+      : Array.from({ length: Math.ceil(part.length / MAX_CUE_CHARS) }, (_v, i) =>
+          part.slice(i * MAX_CUE_CHARS, (i + 1) * MAX_CUE_CHARS),
+        ),
+  )
+}
+
 /** Fonts that hold CJK glyphs, most specific first. */
 const CJK_FONTS = [
   '/System/Library/Fonts/STHeiti Medium.ttc',
@@ -521,6 +567,7 @@ const burnViaOverlay = async (args: {
       // canvas; scale to actual pixels so both burn paths look alike.
       fontPx: Math.round((args.style.fontSize / 22) * (width / 14)),
       fonts: CJK_FONTS,
+      maxLines: 2,
       fill: args.style.primaryColour,
       // CJK has no meaningful italic; narration reads as narration through a
       // warm off-white instead, matching the intro cards' parchment tone.
@@ -609,14 +656,15 @@ probe_draw = ImageDraw.Draw(probe_img)
 for i, cue in enumerate(spec["cues"]):
     text = cue["text"]
     fill = spec["narrationFill"] if cue["narration"] else spec["fill"]
-    lines = wrap(text, probe_draw)
-    lh = spec["fontPx"] + stroke * 2 + 6
+    lines, fnt, px = fit(text, probe_draw)
+    stroke = max(2, px // 12)
+    lh = px + stroke * 2 + 6
     H = lh * len(lines) + 8
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     for j, ln in enumerate(lines):
-        w = d.textlength(ln, font=font)
-        d.text(((W - w) / 2, 4 + j * lh), ln, font=font,
+        w = d.textlength(ln, font=fnt)
+        d.text(((W - w) / 2, 4 + j * lh), ln, font=fnt,
                fill=fill, stroke_width=stroke, stroke_fill=spec["stroke"])
     img.save(os.path.join(spec["dir"], f"cue-{i}.png"))
 print(json.dumps({"ok": True, "count": len(spec["cues"])}))

@@ -118,8 +118,8 @@ export default definePlugin<StagePort>({
         target,
         srt,
         {
-          fontSize: numberOption(ctx.options['fontSize'], 18),
-          marginVertical: numberOption(ctx.options['marginVertical'], 60),
+          fontSize: numberOption(ctx.options['fontSize'], 15),
+          marginVertical: numberOption(ctx.options['marginVertical'], 200),
           primaryColour: stringOption(ctx.options['primaryColour'], '#FFFFFF'),
           outlineColour: stringOption(ctx.options['outlineColour'], '#000000'),
           ...(typeof ctx.options['fontName'] === 'string'

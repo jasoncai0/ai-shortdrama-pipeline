@@ -30,7 +30,9 @@ describe('narration never shares a shot with dialogue', () => {
 
 describe('hosting order', () => {
   test('short narration on its own silent beat costs no extra shot', () => {
-    const { shots, narrationInserts } = paceBeats([beat({ narration: '雨夜。' })])
+    const { shots, narrationInserts } = paceBeats([beat({ narration: '雨夜。' })], {
+      narrationPlacement: 'hosted',
+    })
 
     expect(narrationInserts).toBe(0)
     expect(shots).toHaveLength(1)
@@ -39,10 +41,13 @@ describe('hosting order', () => {
 
   test('prefers a nearby silent beat over inventing a cutaway', () => {
     const narration = '这段旁白略长一些,放不进带台词的镜头里。'
-    const { shots, narrationInserts } = paceBeats([
+    const { shots, narrationInserts } = paceBeats(
+      [
       beat({ dialogue: '你做梦!', narration }),
       beat({}), // silent, can host
-    ])
+      ],
+      { narrationPlacement: 'hosted' },
+    )
 
     expect(narrationInserts).toBe(0)
     expect(shots.filter((s) => s.kind === 'insert')).toHaveLength(0)
@@ -224,5 +229,46 @@ describe('transition inserts are the approach, not the destination', () => {
 
   test('no transition insert ever contains a character', () => {
     expect(transitionDescription(beat('西楼餐厅'))).toContain('无人物')
+  })
+})
+
+describe('narration stays on connective tissue', () => {
+  const beat2 = (over: Partial<PacingBeat>): PacingBeat =>
+    ({ sceneName: '祖堂', timeOfDay: '日', ...over }) as PacingBeat
+
+  test('by default narration never rides a story beat — it gets its own breath', () => {
+    const { shots, narrationInserts } = paceBeats([
+      beat2({ narration: '雨夜。' }),
+      beat2({}),
+    ])
+
+    expect(narrationInserts).toBe(1)
+    for (const s of shots.filter((x) => x.kind === 'beat')) {
+      expect(s.narration).toBeUndefined()
+    }
+  })
+
+  test('a scene keeps at most two narration breaths; the rest are dropped and counted', () => {
+    const { shots, narrationInserts, droppedNarration } = paceBeats([
+      beat2({ narration: '一。' }),
+      beat2({ narration: '二。' }),
+      beat2({ narration: '三。' }),
+      beat2({ narration: '四。' }),
+    ])
+
+    expect(narrationInserts).toBe(2)
+    expect(droppedNarration).toBe(2)
+    expect(shots.filter((s) => s.insertRole === 'narration')).toHaveLength(2)
+  })
+
+  test('the cap is per scene, not per episode', () => {
+    const { droppedNarration, narrationInserts } = paceBeats([
+      beat2({ narration: '一。' }),
+      beat2({ narration: '二。' }),
+      beat2({ narration: '三。', sceneName: '湖畔' }),
+    ])
+
+    expect(droppedNarration).toBe(0)
+    expect(narrationInserts).toBe(3)
   })
 })

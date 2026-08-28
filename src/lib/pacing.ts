@@ -52,6 +52,22 @@ export interface PacingOptions {
   readonly maxInsertRatio: number
   /** How far ahead narration may travel to find a silent host. */
   readonly hostReach: number
+  /**
+   * Where narration is allowed to land.
+   *
+   * 'inserts' (default): only on breathing shots of its own — never over a
+   * story beat. Riding a silent story beat sounded free but competes with the
+   * action on screen; the (OS) voice belongs on connective tissue.
+   * 'hosted': the old behaviour — a nearby silent beat may carry it.
+   */
+  readonly narrationPlacement: 'inserts' | 'hosted'
+  /**
+   * Most narration a single scene may keep, as insert shots. The genre's (OS)
+   * voice is exposition; two breaths per scene is plenty, and everything past
+   * that slows the story more than it informs. Dropped lines are counted and
+   * reported, never silently lost.
+   */
+  readonly maxNarrationPerScene: number
 }
 
 export const DEFAULT_PACING: PacingOptions = {
@@ -59,6 +75,8 @@ export const DEFAULT_PACING: PacingOptions = {
   transitionInserts: true,
   maxInsertRatio: 0.4,
   hostReach: 2,
+  narrationPlacement: 'inserts',
+  maxNarrationPerScene: 2,
 }
 
 export interface PacingResult {
@@ -67,6 +85,8 @@ export interface PacingResult {
   readonly transitionInserts: number
   /** Scene changes that got no transition because the ration ran out. */
   readonly suppressed: number
+  /** Narration lines dropped by the per-scene cap. */
+  readonly droppedNarration: number
 }
 
 /**
@@ -95,19 +115,32 @@ export const paceBeats = (
     return opts.narrationCharBudget - used
   }
 
+  let droppedNarration = 0
+  const narrationPerScene = new Map<string, number>()
+
   for (const [index, beat] of beats.entries()) {
     const narration = beat.narration?.trim()
     if (!narration) continue
 
-    if (roomAt(index) >= narration.length) {
-      hosted.set(index, [...(hosted.get(index) ?? []), narration])
+    // The per-scene ration comes first: a scene drowning in (OS) voice stops
+    // being a scene. What survives goes on its own breath by default.
+    const taken = narrationPerScene.get(beat.sceneName) ?? 0
+    if (taken >= opts.maxNarrationPerScene) {
+      droppedNarration += 1
       continue
     }
+    narrationPerScene.set(beat.sceneName, taken + 1)
 
-    const host = findSilentHost(beats, index, opts.hostReach, roomAt, narration.length)
-    if (host !== undefined) {
-      hosted.set(host, [...(hosted.get(host) ?? []), narration])
-      continue
+    if (opts.narrationPlacement === 'hosted') {
+      if (roomAt(index) >= narration.length) {
+        hosted.set(index, [...(hosted.get(index) ?? []), narration])
+        continue
+      }
+      const host = findSilentHost(beats, index, opts.hostReach, roomAt, narration.length)
+      if (host !== undefined) {
+        hosted.set(host, [...(hosted.get(host) ?? []), narration])
+        continue
+      }
     }
 
     needsInsert.push(index)
@@ -167,6 +200,7 @@ export const paceBeats = (
 
   return {
     shots: out,
+    droppedNarration,
     narrationInserts,
     transitionInserts: transitionsUsed,
     suppressed: Math.max(0, sceneChanges - transitionsUsed),
