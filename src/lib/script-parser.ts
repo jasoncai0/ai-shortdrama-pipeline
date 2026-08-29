@@ -316,7 +316,17 @@ export const parseScript = (markdown: string): ParsedScript => {
     if (section !== 'body' || !episode) continue
 
     if (HOOK_RE.test(line)) {
+      // Season-2 hooks are the episode's closing shots, so they need a scene
+      // to land in — a continuation of wherever the episode just was.
+      const carried: { index: number; name: string; timeOfDay: string } | null | undefined =
+        scene ?? episode.scenes[episode.scenes.length - 1]
       flushScene()
+      scene = {
+        index: (carried?.index ?? 0) + 1,
+        name: carried?.name ?? '',
+        timeOfDay: carried?.timeOfDay ?? '日',
+        lines: [],
+      }
       inHook = true
       continue
     }
@@ -338,7 +348,12 @@ export const parseScript = (markdown: string): ParsedScript => {
 
     if (inHook) {
       const parsed = classifyLine(line)
-      if (parsed?.text) episode.hook = episode.hook ? `${episode.hook} ${parsed.text}` : parsed.text
+      if (!parsed?.text) continue
+      episode.hook = episode.hook ? `${episode.hook} ${parsed.text}` : parsed.text
+      // A season-1 hook is narration ABOUT the episode; a season-2 hook is the
+      // episode's actual closing shots (画面钩/动作钩). Dialogue and action in
+      // the hook are therefore also scenes to shoot — narration stays summary.
+      if (parsed.kind !== 'os' && scene) scene.lines.push(parsed)
       continue
     }
 
@@ -381,6 +396,11 @@ export const charactersInLine = (
       if (line.speaker === c.name) return true
       if (c.aliases.includes(line.speaker)) return true
       if (line.speaker.length >= 2 && c.name.startsWith(line.speaker)) return true
+      // Season-2 lines fold scene and action into the speaker slot —
+      // 「丹砂岭道院。汪县令一躬到底:"…"」 — so a name or alias buried inside
+      // the slot still identifies the speaker.
+      if (line.speaker.includes(c.name)) return true
+      if (c.aliases.some((a) => a.length >= 2 && line.speaker!.includes(a))) return true
     }
     if (haystack.includes(c.name)) return true
     return c.aliases.some((a) => a.length >= 2 && haystack.includes(a))
