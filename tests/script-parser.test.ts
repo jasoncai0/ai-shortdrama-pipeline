@@ -161,3 +161,35 @@ describe('charactersInLine', () => {
     expect(hits).toEqual(['陈瑜之'])
   })
 })
+
+describe('section headings are season-agnostic', () => {
+  const script = (season: string) => `# 试片
+
+## 人物表(主要角色)
+
+| 角色 | 身份 | 一句话人设 |
+|---|---|---|
+| 甲 | 男主 | x |
+
+## 第${season}季节奏总览
+
+| 集 | 对应原作 | 一句话剧情 |
+|---|---|---|
+| 1 | 第1章 | 开场 |
+
+# 第1集 开场(约90秒)
+
+【场1·荒山·日】
+甲登场,士子云集。
+`
+
+  test('a season-two overview table is not read as more cast rows', () => {
+    // 「集」 is the overview header; imported as a character it then matched
+    // 「云集」 in the action line and got its own portrait.
+    expect(parseScript(script('二')).characters.map((c) => c.name)).toEqual(['甲'])
+  })
+
+  test('season one still parses the same way', () => {
+    expect(parseScript(script('一')).characters.map((c) => c.name)).toEqual(['甲'])
+  })
+})

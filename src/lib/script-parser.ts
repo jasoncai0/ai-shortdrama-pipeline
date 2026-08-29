@@ -257,7 +257,10 @@ export const parseScript = (markdown: string): ParsedScript => {
       section = 'characters'
       continue
     }
-    if (/^#+\s*第一季节奏总览/.test(line)) {
+    // Any season, not just the first: hardcoding 第一季 meant a season-two
+    // script never left the 人物表 section, so the overview table's header
+    // row 「集」 was imported as a character — and matched 「士子云集」.
+    if (/^#+\s*第.{1,3}季节奏总览/.test(line)) {
       section = 'overview'
       continue
     }
