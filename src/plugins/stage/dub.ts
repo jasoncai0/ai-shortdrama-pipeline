@@ -37,7 +37,12 @@ import type { AssetRef, Shot } from '../../kernel/types.js'
  *   narratorVoice   voice id for narration lines — overrides project.narrator
  *   speed           0.5–2, default 1
  *   voiceGainDb     default 0
- *   bedGainDb       clip's own audio while the voice plays, default -12
+ *   bedGainDb       clip's own audio while the voice plays, default -12.
+ *                   Ignored unless muteSourceAudio is false.
+ *   muteSourceAudio strip the video model's invented audio from every clip,
+ *                   dubbed or not. Default true: that track performs the same
+ *                   line we are dubbing, so it is a second voice under the
+ *                   scene — and the only voice on shots with no dialogue.
  *   padToVoice      hold the last frame when a line outruns the shot (default false)
  *   includeNarration speak `shot.narration` too (default true)
  *   narrationOpeningShots  how many head shots may carry narration (default 1)
@@ -135,9 +140,16 @@ export default definePlugin<StagePort>({
         lines.set(shot.id, resolved)
       }
 
+      // A generative video model invents its own audio, and that take performs
+      // the very line being dubbed — a second voice under every shot, and the
+      // ONLY voice on shots that are never dubbed. When the pipeline owns the
+      // audio layer, the model's track comes off every clip.
+      const muteSourceAudio = ctx.options['muteSourceAudio'] !== false
+      const bedGain = muteSourceAudio ? -120 : bedGainDb
+
       const pending = project.shots
         .filter((shot) => !shot.voicedClip && shot.clip)
-        .filter((shot) => lines.has(shot.id))
+        .filter((shot) => lines.has(shot.id) || muteSourceAudio)
         .slice(0, ctx.limitShots ?? undefined)
 
       if (pending.length === 0) {
@@ -147,7 +159,17 @@ export default definePlugin<StagePort>({
       log.info(`dub: voicing ${pending.length} shots via ${ports.speech.name}`)
 
       const results = await mapPool(pending, limit, async (shot) => {
-        const resolved = lines.get(shot.id) as { text: string; voice?: string }
+        const resolved = lines.get(shot.id)
+
+        // Nothing to say here: the shot still needs the model's invented audio
+        // taken off, or it plays over the score with a voice nobody cast.
+        if (!resolved) {
+          const muted = ports.post.stripAudio
+            ? await ports.post.stripAudio(shot.clip as AssetRef, ports.assetStore, project.id)
+            : (shot.clip as AssetRef)
+          return { shotId: shot.id, voice: undefined, voicedClip: muted }
+        }
+
         const text = resolved.text
         const voice = resolved.voice
 
@@ -178,7 +200,9 @@ export default definePlugin<StagePort>({
 
         let track: AssetRef
         try {
-          track = await say(text, '')
+          // A re-mix — silencing the bed, say — must not pay for the same
+          // take twice: the first pass left the speech asset on the shot.
+          track = shot.voice ?? (await say(text, ''))
         } catch (error) {
           const clauses = splitOnFailure ? clauseSplit(text) : []
           if (!ports.post.concatAudio || clauses.length < 2) throw error
@@ -200,7 +224,7 @@ export default definePlugin<StagePort>({
         const voiced = await mixVoice(
           shot.clip as AssetRef,
           track,
-          { voiceGainDb, bedGainDb, padToVoice },
+          { voiceGainDb, bedGainDb: bedGain, padToVoice },
           ports.assetStore,
           project.id,
         )
@@ -215,7 +239,8 @@ export default definePlugin<StagePort>({
         const shot = pending[index]
         if (!shot) return
         if (settled.ok) {
-          voiceById.set(settled.value.shotId, settled.value.voice)
+          // A muted clip carries no voice — only shots with a line do.
+          if (settled.value.voice) voiceById.set(settled.value.shotId, settled.value.voice)
           voicedById.set(settled.value.shotId, settled.value.voicedClip)
         } else failures.push({ subject: shot.id, error: settled.error })
       })

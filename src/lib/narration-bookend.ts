@@ -19,6 +19,15 @@ import type { Shot } from '../kernel/types.js'
 
 export interface BookendOptions {
   /**
+   * Move the two survivors to the very ends of the cut.
+   *
+   * Keeping them where the script put them is still "only two lines", but a
+   * line 17% in is not an opening. Relocated inserts are re-pictured to the
+   * scene they now sit against, so the prologue looks like the place the story
+   * starts and the epilogue like the place it ends.
+   */
+  readonly relocate: boolean
+  /**
    * How many shots at each end count as "the opening" / "the closing".
    *
    * Counted in shots rather than seconds because that is what the caller can
@@ -29,7 +38,7 @@ export interface BookendOptions {
   readonly tailShots: number
 }
 
-export const DEFAULT_BOOKEND: BookendOptions = { headShots: 3, tailShots: 3 }
+export const DEFAULT_BOOKEND: BookendOptions = { headShots: 3, tailShots: 3, relocate: true }
 
 export interface BookendResult {
   readonly shots: readonly Shot[]
@@ -50,20 +59,36 @@ const isNarrationInsert = (shot: Shot): boolean =>
 export const bookendNarration = (
   shots: readonly Shot[],
   options: Partial<BookendOptions> = {},
+  sceneNameById: ReadonlyMap<string, string> = new Map(),
 ): BookendResult => {
   const opts = { ...DEFAULT_BOOKEND, ...options }
   const total = shots.length
 
-  // Overlapping windows on a very short cut would let everything through,
-  // which is the correct reading of "the whole thing is the opening".
-  const inBookend = (index: number): boolean =>
-    index < opts.headShots || index >= total - opts.tailShots
+  const carriers = shots
+    .map((shot, index) => ({ shot, index }))
+    .filter(({ shot }) => Boolean(shot.narration?.trim()))
+
+  if (carriers.length === 0) return { shots, removedInserts: 0, strippedBeats: 0 }
+
+  // The opening and the closing are the two the merged cut keeps, wherever
+  // they happen to sit: a window test alone deletes every line when the
+  // script puts none in the first or last few shots, which is not "bookends",
+  // it is silence.
+  const keep = new Set<number>([
+    carriers[0]!.index,
+    carriers[carriers.length - 1]!.index,
+  ])
+  // Anything genuinely inside the opening or closing run stays too — those
+  // read as part of the same breath rather than an interruption.
+  for (const { index } of carriers) {
+    if (index < opts.headShots || index >= total - opts.tailShots) keep.add(index)
+  }
 
   let removedInserts = 0
   let strippedBeats = 0
 
   const kept = shots.flatMap((shot, index) => {
-    if (!shot.narration || inBookend(index)) return [shot]
+    if (!shot.narration || keep.has(index)) return [shot]
 
     if (isNarrationInsert(shot)) {
       removedInserts += 1
@@ -75,14 +100,62 @@ export const bookendNarration = (
     return [rest as Shot]
   })
 
+  const placed = opts.relocate ? relocateToEnds(kept, sceneNameById) : kept
+
   // Order fields are the cut's own numbering, so they are renumbered per
   // episode after a removal — a gap in `order` breaks the export sort.
   const perEpisode = new Map<string, number>()
-  const renumbered = kept.map((shot) => {
+  const renumbered = placed.map((shot) => {
     const next = (perEpisode.get(shot.episodeId) ?? 0) + 1
     perEpisode.set(shot.episodeId, next)
     return shot.order === next ? shot : { ...shot, order: next }
   })
 
   return { shots: renumbered, removedInserts, strippedBeats }
+}
+
+/** Re-pictures a moved insert so it shows where it now sits. */
+const repicture = (insert: Shot, neighbour: Shot, sceneNameById: ReadonlyMap<string, string>): Shot => {
+  const sceneId = neighbour.sceneId
+  const sceneName = sceneId ? sceneNameById.get(sceneId) : undefined
+  return {
+    ...insert,
+    episodeId: neighbour.episodeId,
+    ...(sceneId ? { sceneId } : {}),
+    lightingAndAtmosphere: neighbour.lightingAndAtmosphere,
+    ...(sceneName
+      ? { plotDescription: `${sceneName}的空镜留白, 无人物, 环境静物与光线` }
+      : {}),
+  }
+}
+
+/**
+ * Lifts the first and last narration inserts out of the body and re-seats them
+ * at the head and tail of the cut. Inserts only: a story beat cannot be moved
+ * without breaking the scene it belongs to, so one carrying narration stays
+ * where it is.
+ */
+const relocateToEnds = (
+  shots: readonly Shot[],
+  sceneNameById: ReadonlyMap<string, string>,
+): readonly Shot[] => {
+  const movable = shots
+    .map((shot, index) => ({ shot, index }))
+    .filter(({ shot }) => isNarrationInsert(shot) && Boolean(shot.narration?.trim()))
+
+  if (movable.length === 0) return shots
+
+  const first = movable[0]!
+  const last = movable[movable.length - 1]!
+  const lifted = new Set<number>([first.index, last.index])
+  const body = shots.filter((_shot, index) => !lifted.has(index))
+  if (body.length === 0) return shots
+
+  const head = repicture(first.shot, body[0]!, sceneNameById)
+  const tail =
+    last.index === first.index
+      ? undefined
+      : repicture(last.shot, body[body.length - 1]!, sceneNameById)
+
+  return tail ? [head, ...body, tail] : [head, ...body]
 }

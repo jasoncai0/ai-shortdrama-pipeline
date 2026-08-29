@@ -403,10 +403,15 @@ export default definePlugin<StagePort>({
       // tail, not every couple of minutes in the middle. Runs before coverage
       // so a dropped insert never gets framed or costed.
       if (options['narrationBookend'] === true) {
-        const bookended = bookendNarration(shots, {
-          headShots: numberOption(options['narrationHeadShots'], DEFAULT_BOOKEND.headShots),
-          tailShots: numberOption(options['narrationTailShots'], DEFAULT_BOOKEND.tailShots),
-        })
+        const bookended = bookendNarration(
+          shots,
+          {
+            headShots: numberOption(options['narrationHeadShots'], DEFAULT_BOOKEND.headShots),
+            tailShots: numberOption(options['narrationTailShots'], DEFAULT_BOOKEND.tailShots),
+            relocate: options['narrationRelocate'] !== false,
+          },
+          new Map(scenes.map((s) => [s.id, s.name])),
+        )
         if (bookended.removedInserts > 0 || bookended.strippedBeats > 0) {
           deps.log.info(
             `import-script: 旁白只保留片头片尾 — 中段删除 ${bookended.removedInserts} 个旁白留白镜` +
