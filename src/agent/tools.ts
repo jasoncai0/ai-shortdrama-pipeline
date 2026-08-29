@@ -133,8 +133,16 @@ export const buildAgentTools = (
 
   registry.register({
     name: 'update_character',
-    description: '修改一个角色的可写字段（epithet / billing / appearance）。身份图等资产不可由此修改。',
-    args: { name: '角色名', epithet: '可选', billing: '可选 lead|supporting|extra', appearance: '可选' },
+    description:
+      '修改一个角色的可写字段（epithet / billing / appearance / voiceProfile 音色人设 / voiceId 选定音色）。身份图等资产不可由此修改。',
+    args: {
+      name: '角色名',
+      epithet: '可选',
+      billing: '可选 lead|supporting|extra',
+      appearance: '可选',
+      voiceProfile: '可选，音色人设描述',
+      voiceId: '可选，供应商音色 id',
+    },
     run: async (args) => {
       const name = String(args['name'] ?? '')
       const target = holder.current.characters.find((c) => c.name === name)
@@ -151,6 +159,21 @@ export const buildAgentTools = (
                   ? { billing: args['billing'] }
                   : {}),
                 ...(typeof args['appearance'] === 'string' ? { appearance: args['appearance'] } : {}),
+                ...(typeof args['voiceProfile'] === 'string' || typeof args['voiceId'] === 'string'
+                  ? {
+                      voice: {
+                        profile:
+                          typeof args['voiceProfile'] === 'string'
+                            ? args['voiceProfile']
+                            : (c.voice?.profile ?? ''),
+                        ...(typeof args['voiceId'] === 'string'
+                          ? { voiceId: args['voiceId'] }
+                          : c.voice?.voiceId
+                            ? { voiceId: c.voice.voiceId }
+                            : {}),
+                      },
+                    }
+                  : {}),
               },
         ),
       }

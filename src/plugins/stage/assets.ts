@@ -39,9 +39,17 @@ const assetsSchema = z.object({
           .string()
           .optional()
           .describe('六字以内的中文身份标签，用于首次出场的字幕条，如「外卖员 · 目击者」'),
+        voiceProfile: z
+          .string()
+          .optional()
+          .describe('音色人设：性别/年龄段/音色质感/语速/情绪基调，如「二十多岁男声，偏沙哑，语速快，紧绷警觉」'),
       }),
     )
     .min(1),
+  narratorVoiceProfile: z
+    .string()
+    .optional()
+    .describe('旁白音人设，必须与所有角色音明显区分，如「中年男声，低沉平稳，纪录片质感，语速慢」'),
   scenes: z
     .array(
       z.object({
@@ -61,6 +69,7 @@ const assetsSchema = z.object({
 })
 
 const SYSTEM = `你是短剧制片的资产统筹。输出严格 JSON，无解释、无代码围栏。
+人声也是人设：每个角色给 voiceProfile（音色人设，贴合其年龄/性别/性格）；narratorVoiceProfile 是旁白音人设，必须与所有角色音明显区分开。
 appearance 与 visualDescription 必须是英文视觉描述词组，它们会被逐字拼进图像模型提示词，
 所以要具体（发型、服装、年龄、体型、材质、光线），不要写剧情或情绪。`
 
@@ -96,7 +105,7 @@ export default definePlugin<StagePort>({
               `视觉风格：${plan.styleGuide}`,
               '',
               `拆解为 ${episodeCount} 集，并列出全部人物、场景、道具。`,
-              'JSON 字段：episodes[{title,synopsis}], characters[{name,appearance,personality,epithet,billing}], scenes[{name,visualDescription}], props[{name,description}]',
+              'JSON 字段：episodes[{title,synopsis}], characters[{name,appearance,personality,epithet,billing,voiceProfile}], scenes[{name,visualDescription}], props[{name,description}], narratorVoiceProfile',
             ].join('\n'),
           },
         ],
@@ -118,6 +127,7 @@ export default definePlugin<StagePort>({
         personality: c.personality,
         epithet: c.epithet,
         billing: c.billing,
+        ...(c.voiceProfile ? { voice: { profile: c.voiceProfile } } : {}),
       }))
 
       const scenes: readonly Scene[] = result.data.scenes.map((s, index) => ({
@@ -145,6 +155,9 @@ export default definePlugin<StagePort>({
           characters,
           scenes,
           props,
+          ...(result.data.narratorVoiceProfile
+            ? { narrator: { profile: result.data.narratorVoiceProfile } }
+            : {}),
           updatedAt: new Date().toISOString(),
         },
       }

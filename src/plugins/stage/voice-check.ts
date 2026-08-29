@@ -1,6 +1,6 @@
 import { definePlugin } from '../../kernel/registry.js'
 import { configError } from '../../kernel/errors.js'
-import { narrationReport, validateVoiceCasting } from '../../lib/voice.js'
+import { narrationReport, resolveCasting, validateVoiceCasting } from '../../lib/voice.js'
 import type { StagePort } from '../../kernel/ports.js'
 
 /**
@@ -31,12 +31,16 @@ export default definePlugin<StagePort>({
     run: async (ctx) => {
       const { project, log } = ctx
 
-      const voices =
-        ctx.options['voices'] && typeof ctx.options['voices'] === 'object'
-          ? (ctx.options['voices'] as Record<string, unknown>)
-          : {}
-      const narratorVoice =
-        typeof ctx.options['narratorVoice'] === 'string' ? ctx.options['narratorVoice'] : undefined
+      const casting0 = resolveCasting(project, {
+        voices:
+          ctx.options['voices'] && typeof ctx.options['voices'] === 'object'
+            ? (ctx.options['voices'] as Record<string, unknown>)
+            : {},
+        narratorVoice:
+          typeof ctx.options['narratorVoice'] === 'string' ? ctx.options['narratorVoice'] : undefined,
+      })
+      const voices = casting0.voices
+      const narratorVoice = casting0.narratorVoice
       const failOn =
         ctx.options['failOn'] === 'errors' || ctx.options['failOn'] === 'findings'
           ? ctx.options['failOn']
@@ -51,10 +55,15 @@ export default definePlugin<StagePort>({
         shots: project.shots,
         voices,
         narratorVoice,
+        briefs: casting0.briefs,
       })
 
       const errors = [...casting.errors]
       const warnings = [...narration.findings, ...casting.warnings]
+      const hasNarration = project.shots.some((s) => s.narration?.trim())
+      if (hasNarration && !casting0.narratorBrief) {
+        warnings.push('旁白无音色人设（project.narrator.profile）— 旁白也是一个角色，先写人设再选音。')
+      }
 
       log.info(
         `voice-check: ${narration.narrated}/${narration.total} shots narrated (${Math.round(narration.ratio * 100)}%)`,

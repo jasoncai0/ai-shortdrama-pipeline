@@ -1,4 +1,4 @@
-import type { Character, Shot } from '../kernel/types.js'
+import type { Character, Project, Shot } from '../kernel/types.js'
 
 /**
  * Voice discipline — the casting and narration rules, as pure checkable logic.
@@ -19,12 +19,49 @@ import type { Character, Shot } from '../kernel/types.js'
  * after `shots`, when a fix costs one regeneration instead of a re-dub.
  */
 
+/**
+ * Effective casting for a project: the voice designed into each character's
+ * 人设 is the source of truth; stage options override per run (a re-dub with
+ * a different provider should not require editing the character).
+ */
+export interface ResolvedCasting {
+  /** character name → provider voice id (only cast characters appear). */
+  readonly voices: Readonly<Record<string, string>>
+  readonly narratorVoice?: string
+  /** character name → casting brief, for picking a voiceId that fits. */
+  readonly briefs: Readonly<Record<string, string>>
+  readonly narratorBrief?: string
+}
+
+export const resolveCasting = (
+  project: Pick<Project, 'characters' | 'narrator'>,
+  overrides: { voices?: Readonly<Record<string, unknown>>; narratorVoice?: string } = {},
+): ResolvedCasting => {
+  const voices: Record<string, string> = {}
+  const briefs: Record<string, string> = {}
+  for (const c of project.characters) {
+    if (c.voice?.voiceId) voices[c.name] = c.voice.voiceId
+    if (c.voice?.profile) briefs[c.name] = c.voice.profile
+  }
+  for (const [name, voice] of Object.entries(overrides.voices ?? {})) {
+    if (typeof voice === 'string' && voice.length > 0) voices[name] = voice
+  }
+  return {
+    voices,
+    narratorVoice: overrides.narratorVoice ?? project.narrator?.voiceId,
+    briefs,
+    narratorBrief: project.narrator?.profile,
+  }
+}
+
 export interface CastingInput {
   readonly characters: readonly Character[]
   readonly shots: readonly Shot[]
   /** character name → provider voice id */
   readonly voices: Readonly<Record<string, unknown>>
   readonly narratorVoice?: string
+  /** character name → casting brief, used to make uncast warnings actionable. */
+  readonly briefs?: Readonly<Record<string, string>>
 }
 
 export interface VoiceFindings {
@@ -73,7 +110,12 @@ export const validateVoiceCasting = (input: CastingInput): VoiceFindings => {
   }
   for (const name of speakingNames) {
     if (typeof input.voices[name] !== 'string' || !(input.voices[name] as string)) {
-      warnings.push(`说话角色 "${name}" 未指定音色，将回落到适配器默认音（可能与他人撞声）。`)
+      const brief = input.briefs?.[name]
+      warnings.push(
+        brief
+          ? `说话角色 "${name}" 已有音色人设「${brief}」但未选定 voiceId — 按人设挑一个贴合的音色。`
+          : `说话角色 "${name}" 未指定音色，将回落到适配器默认音（可能与他人撞声）。`,
+      )
     }
   }
 

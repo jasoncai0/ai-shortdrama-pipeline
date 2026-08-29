@@ -4,7 +4,7 @@ import { findCharacter } from '../../kernel/types.js'
 import { mapPool } from '../../lib/pool.js'
 import { describeError } from '../../kernel/errors.js'
 import { billedGenerate, summarize } from './shared.js'
-import { validateVoiceCasting } from '../../lib/voice.js'
+import { resolveCasting, validateVoiceCasting } from '../../lib/voice.js'
 import type { StagePort } from '../../kernel/ports.js'
 import type { AssetRef, Shot } from '../../kernel/types.js'
 
@@ -26,8 +26,9 @@ import type { AssetRef, Shot } from '../../kernel/types.js'
  * Runs after `videos` and before `export`, which prefers `voicedClip`.
  *
  * Options:
- *   voices          { "陈瑜之": "male-qn-jingying", … }
- *   narratorVoice   voice id for narration lines
+ *   voices          { "陈瑜之": "male-qn-jingying", … } — overrides the
+ *                   voiceId designed into each character (character.voice)
+ *   narratorVoice   voice id for narration lines — overrides project.narrator
  *   speed           0.5–2, default 1
  *   voiceGainDb     default 0
  *   bedGainDb       clip's own audio while the voice plays, default -12
@@ -66,9 +67,15 @@ export default definePlugin<StagePort>({
       const bedGainDb = numberOption(ctx.options['bedGainDb'], -12)
       const padToVoice = ctx.options['padToVoice'] === true
       const includeNarration = ctx.options['includeNarration'] !== false
-      const voices = asRecord(ctx.options['voices'])
       const splitOnFailure = ctx.options['splitOnFailure'] !== false
-      const narratorVoice = asString(ctx.options['narratorVoice'])
+      // The voice designed into each character's 人设 is the default casting;
+      // stage options override per run without editing the character.
+      const casting0 = resolveCasting(project, {
+        voices: asRecord(ctx.options['voices']),
+        narratorVoice: asString(ctx.options['narratorVoice']),
+      })
+      const voices: Record<string, unknown> = { ...casting0.voices }
+      const narratorVoice = casting0.narratorVoice
       const limit = Math.min(2, ports.speech.caps.maxConcurrency)
 
       // Casting rules are hard constraints, checked before anything is spent:
@@ -82,6 +89,7 @@ export default definePlugin<StagePort>({
           : project.shots.map((s) => ({ ...s, narration: undefined })),
         voices,
         narratorVoice,
+        briefs: casting0.briefs,
       })
       if (casting.errors.length > 0 && ctx.options['strictCasting'] !== false) {
         throw new Error(`dub: 声音约束不满足 — ${casting.errors.join(' | ')}`)

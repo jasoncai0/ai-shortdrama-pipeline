@@ -67,12 +67,16 @@ export interface ParsedScript {
 // Both ASCII and full-width punctuation appear in these scripts. Regexes are
 // written out literally — interpolating a character class into a NEGATED class
 // (`[^${OPEN_PAREN}]`) silently produces the wrong matcher.
-const EPISODE_RE = /^#+\s*第\s*(\d+)\s*集\s*([^(（]*?)\s*(?:[(（]\s*约?\s*(\d+)\s*秒\s*[)）])?\s*$/
+// Season-2 headings annotate a word count after the seconds — 「(约122秒·550字)」
+// — so anything between 秒 and the closing bracket is tolerated.
+const EPISODE_RE = /^#+\s*第\s*(\d+)\s*集\s*([^(（]*?)\s*(?:[(（]\s*约?\s*(\d+)\s*秒[^)）]*[)）])?\s*$/
 const SCENE_RE = /^【场\s*(\d+)\s*[·・]\s*(.+?)\s*[·・]\s*([^】]+)】\s*$/
 const HOOK_RE = /^【本集钩子[^】]*】\s*$/
-const SUBTITLE_RE = /^字幕[:：]\s*(.+)$/
-const OS_RE = /^[(（]\s*OS\s*[)）]\s*[:：]\s*(.*)$/
+const SUBTITLE_RE = /^字幕(?:[(（][^)）]*[)）])?[:：]\s*(.+)$/
+// (OS) and its season-2 qualified forms — (OS·信息压缩), (OS·时间跳跃).
+const OS_RE = /^[(（]\s*OS[^)）]*[)）]\s*[:：]\s*(.*)$/
 const CAMERA_LEAD_RE = /^[(（](特写|闪回|回忆|插入)[)）]\s*(.*)$/
+const SHOT_MARKER_RE = /^[[［]镜头([^\]］]*)[\]］]\s*(.*)$/
 const DIALOGUE_RE = /^([^:：(（【]{1,14})(?:[(（]([^)）]*)[)）])?\s*[:：]\s*(.*)$/
 const PAREN_INNER_RE = /[(（]([^)）]*)[)）]/
 const STRIP_TRAILING_PAREN_RE = /[(（][^)）]*[)）]\s*$/
@@ -155,6 +159,27 @@ const classifyLine = (raw: string): ParsedLine | null => {
   if (camera) {
     return { kind: 'action', text: camera[2]?.trim() ?? '', camera: camera[1] }
   }
+
+  // Season-2 numbered shot markers: `[镜头3·仰拍] 老道立在古松下…`. The
+  // bracket is direction, not picture — leak it into the text and it ends up
+  // verbatim inside an image prompt. The framing word (特写/中景/…) is kept as
+  // the camera hint so the writer's explicit choice beats the coverage pass.
+  const marker = SHOT_MARKER_RE.exec(line)
+  if (marker) {
+    const hints = (marker[1] ?? '').split('·').map((h) => h.trim()).filter(Boolean)
+    const size = hints.find((h) => /^(特写|近景|中景|全景|远景|广角)$/.test(h))
+    const rest = marker[2]?.trim() ?? ''
+    // A marker with no body (`[镜头·远景]` alone) frames the NEXT line; there
+    // is nothing to shoot in the marker itself.
+    if (!rest) return null
+    const inner = classifyLine(rest)
+    if (!inner) return null
+    const mapped = size === '远景' || size === '广角' ? '全景' : size
+    return mapped && inner.kind === 'action' ? { ...inner, camera: inner.camera ?? mapped } : inner
+  }
+
+  // `(定格·黑场)` and similar bare stage punctuation — not a picture.
+  if (/^[(（][^)）]*[)）]$/.test(line)) return null
 
   const dialogue = DIALOGUE_RE.exec(line)
   if (dialogue) {

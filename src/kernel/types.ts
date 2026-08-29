@@ -39,6 +39,24 @@ export interface ProjectPlan {
  * age live on the Character and must not be restated here — a look that
  * re-describes the person is a look that will drift into a different person.
  */
+/**
+ * A voice is part of the character design, same as a face.
+ *
+ * `profile` is the casting brief — gender, age, texture, pace, emotional
+ * default — written at asset time by the same pass that writes appearance,
+ * so the voice fits the person by construction. `voiceId` is the provider
+ * timbre chosen for that brief; empty until cast.
+ *
+ * The narrator gets the same shape on the Project: the (OS) voice is a
+ * designed persona too, just not one that appears on screen.
+ */
+export interface VoicePersona {
+  /** Casting brief: 性别/年龄/质感/语速/情绪基调. */
+  readonly profile: string
+  /** Provider voice id once cast. */
+  readonly voiceId?: string
+}
+
 export interface WardrobeLook {
   readonly id: string
   /** How the production refers to it: 常服, 夜行衣, 婚服. */
@@ -56,6 +74,8 @@ export interface Character {
   /** Appearance / wardrobe / hair / makeup — fed verbatim into prompts. */
   readonly appearance: string
   readonly personality?: string
+  /** The character's voice design — as much 人设 as the face. */
+  readonly voice?: VoicePersona
   /**
    * Leads get wardrobe variants; extras do not. Generating four outfits for a
    * character with two lines is money spent on something nobody will notice.
@@ -212,6 +232,8 @@ export interface Project {
   readonly createdAt: string
   readonly updatedAt: string
   readonly plan?: ProjectPlan
+  /** The narrator's voice persona — a designed role, distinct from every character. */
+  readonly narrator?: VoicePersona
   readonly episodes: readonly Episode[]
   readonly characters: readonly Character[]
   readonly scenes: readonly Scene[]

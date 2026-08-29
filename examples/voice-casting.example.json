@@ -1,0 +1,52 @@
+{
+  "//": "Voice-as-character-design example. The `assets` stage writes voice.profile (and project.narrator.profile) as part of the character design; a human or the agent then picks a provider voiceId that fits each brief. Stage options remain as per-run overrides.",
+
+  "characterExcerpt": {
+    "id": "ch1",
+    "name": "林默",
+    "billing": "lead",
+    "appearance": "male, mid-20s, lean build, tired eyes, dark windbreaker",
+    "personality": "警觉、寡言，被逼到墙角才爆发",
+    "voice": {
+      "profile": "二十多岁男声，偏沙哑，语速快，紧绷警觉",
+      "voiceId": "male-qn-badao"
+    }
+  },
+
+  "projectNarratorExcerpt": {
+    "narrator": {
+      "profile": "中年男声，低沉平稳，纪录片质感，语速慢——与所有角色音明显区分",
+      "voiceId": "presenter_male"
+    }
+  },
+
+  "dubStageConfig": {
+    "//": "No voices/narratorVoice needed when characters and narrator are already cast in the project. Options below OVERRIDE the designed casting for one run (e.g. switching speech providers) without editing any character.",
+    "id": "dub",
+    "options": {
+      "voices": { "林默": "alt-provider-voice-01" },
+      "narratorVoice": "alt-provider-narrator",
+      "strictCasting": true,
+      "includeNarration": true
+    }
+  },
+
+  "voiceCheckStageConfig": {
+    "id": "voice-check",
+    "options": {
+      "maxNarrationRatio": 0.3,
+      "maxNarrationRun": 2,
+      "failOn": "errors"
+    }
+  },
+
+  "agentUsage": {
+    "//": "The agent can cast a voice that fits the brief without touching config files.",
+    "tool": "update_character",
+    "args": {
+      "name": "王队长",
+      "voiceProfile": "四十岁男声，沉稳有威，语速中等",
+      "voiceId": "male-chenwen-daqi"
+    }
+  }
+}
