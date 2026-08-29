@@ -49,6 +49,10 @@ export default definePlugin<ExportPort>({
             '-y',
             '-hide_banner',
             '-loglevel', 'error',
+            // Machine-readable progress on stdout: the only way a caller can
+            // distinguish a long encode from a hung one.
+            '-progress', 'pipe:1',
+            '-nostats',
             '-f', 'concat',
             '-safe', '0',
             '-i', listFile,
@@ -62,7 +66,14 @@ export default definePlugin<ExportPort>({
             '-b:a', '128k',
             outFile,
           ],
-          { timeoutMs: 0, log: deps.log },
+          {
+            timeoutMs: 0,
+            log: deps.log,
+            onStdoutLine: (line) => {
+              const match = /^out_time_ms=(\d+)$/.exec(line)
+              if (match?.[1]) opts.onProgress?.(Number(match[1]) / 1_000_000)
+            },
+          },
         )
 
         const bytes = new Uint8Array(await readFile(outFile))

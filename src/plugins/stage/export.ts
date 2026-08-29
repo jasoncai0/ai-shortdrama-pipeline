@@ -49,6 +49,9 @@ export default definePlugin<StagePort>({
           fps: numberOption(ctx.options['fps'], 24),
           crf: numberOption(ctx.options['crf'], 20),
           outputLabel: `${project.id}-final`,
+          // Every reported second of output is a liveness signal: a long
+          // concat is otherwise indistinguishable from a hung encoder.
+          onProgress: (seconds) => ctx.emit('progress', { note: `encoding ${Math.round(seconds)}s` }),
         },
         ports.assetStore,
         project.id,

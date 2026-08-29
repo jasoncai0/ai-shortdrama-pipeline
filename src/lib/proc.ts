@@ -21,6 +21,15 @@ export interface RunOptions {
    * its input without that input ever touching disk.
    */
   readonly stdin?: string
+  /**
+   * Called with each line of stdout as it arrives.
+   *
+   * A long single call (a 90-clip ffmpeg concat) produces no output until it
+   * finishes, so a watchdog watching for progress cannot tell it apart from a
+   * hung process. Streaming lets the caller turn provider progress into
+   * heartbeats.
+   */
+  readonly onStdoutLine?: (line: string) => void
 }
 
 /**
@@ -33,7 +42,7 @@ export const run = async (
   args: readonly string[],
   opts: RunOptions = {},
 ): Promise<RunResult> => {
-  const { cwd, env, timeoutMs = 0, log, streamStderr = false, stdin } = opts
+  const { cwd, env, timeoutMs = 0, log, streamStderr = false, stdin, onStdoutLine } = opts
 
   return new Promise<RunResult>((resolvePromise, reject) => {
     const child = spawn(cmd, [...args], {
@@ -67,7 +76,18 @@ export const run = async (
     const stderr = child.stderr as NodeJS.ReadableStream
 
     stdout.setEncoding('utf8')
-    stdout.on('data', (chunk: string) => outChunks.push(chunk))
+    let pending = ''
+    stdout.on('data', (chunk: string) => {
+      outChunks.push(chunk)
+      if (!onStdoutLine) return
+      pending += chunk
+      const lines = pending.split('\n')
+      pending = lines.pop() ?? ''
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (trimmed) onStdoutLine(trimmed)
+      }
+    })
 
     stderr.setEncoding('utf8')
     stderr.on('data', (chunk: string) => {

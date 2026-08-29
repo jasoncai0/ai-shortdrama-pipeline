@@ -477,6 +477,14 @@ export interface ExportOptions {
   readonly fps: number
   readonly crf: number
   readonly outputLabel: string
+  /**
+   * Called as the encode advances, so the caller can prove liveness.
+   *
+   * A 90-clip concat is one silent multi-minute call; without this the stall
+   * watchdog cannot tell it apart from a hung process and kills a healthy
+   * encode. `seconds` is output position, when the encoder reports it.
+   */
+  readonly onProgress?: (seconds: number) => void
 }
 
 export interface ExportPort extends Plugin {
