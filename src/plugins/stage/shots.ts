@@ -42,8 +42,9 @@ cameraMove 用运镜术语（static / slow dolly-in / pan left / handheld follow
 
 声音纪律（硬性约束）：
 - 叙事优先走 dialogue（角色台词）和画面动作；有台词的镜头，characterNames 第一个必须是说话人。
-- narration（旁白）只在转场、时间跳跃、地点切换时用，一两句即可；全片旁白镜头不得超过约 30%，绝不能每镜都有旁白。
-- 不要连续超过 2 个镜头使用旁白；旁白和台词不要复述同一信息。`
+- narration（旁白）只允许出现在本集的**第一个镜头**和**最后一个镜头**，用于开场定调和收尾留扣；中间任何镜头都不要写 narration。
+- 有 dialogue 的镜头绝不能同时写 narration —— 一个镜头只有一个声音；写了也会被丢弃。
+- 旁白和台词不要复述同一信息。`
 
 export default definePlugin<StagePort>({
   port: 'stage',

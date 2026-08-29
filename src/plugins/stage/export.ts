@@ -30,12 +30,39 @@ export default definePlugin<StagePort>({
 
       // A voiced clip supersedes the silent one; the clean version stays in
       // the store under its own key, so this is a preference, not a loss.
-      const clips = ordered
-        .map(renderedClip)
-        .filter((clip): clip is AssetRef => Boolean(clip))
       const voiced = ordered.filter((shot) => shot.voicedClip).length
       if (voiced > 0) {
         log.info(`export: ${voiced}/${ordered.length} shots use their dubbed audio`)
+      }
+
+      // A shot with no dub still carries the video model's invented
+      // soundtrack, which routinely includes speech-like noise. Under a real
+      // voice that track is a bed the mix ducks; alone it is heard in full, so
+      // an empty 留白 insert sounds like it has a voice-over nobody recorded.
+      // Silencing those shots leaves only the score over them.
+      const silenceUnvoiced = ctx.options['silenceUnvoiced'] !== false
+      const mute = ports.post?.muteAudio?.bind(ports.post)
+      if (silenceUnvoiced && !mute && voiced < ordered.length) {
+        log.warn(
+          `export: post adapter "${ports.post?.name ?? 'none'}" cannot mute audio; ${ordered.length - voiced} unvoiced shot(s) keep the generated soundtrack`,
+        )
+      }
+
+      const clips: AssetRef[] = []
+      let muted = 0
+      for (const shot of ordered) {
+        const rendered = renderedClip(shot)
+        if (!rendered) continue
+        if (silenceUnvoiced && mute && !shot.voicedClip) {
+          clips.push(await mute(rendered, ports.assetStore, project.id))
+          muted += 1
+          ctx.emit('progress', { note: `muting ${shot.id}` })
+        } else {
+          clips.push(rendered)
+        }
+      }
+      if (muted > 0) {
+        log.info(`export: silenced ${muted} shot(s) that carry no dubbed voice`)
       }
 
       const missing = ordered.length - clips.length

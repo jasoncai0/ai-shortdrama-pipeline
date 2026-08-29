@@ -5,6 +5,7 @@ import { definePlugin } from '../../kernel/registry.js'
 import { charactersInLine, parseScript, withAliases } from '../../lib/script-parser.js'
 import { paceBeats } from '../../lib/pacing.js'
 import { planShotLanguage } from '../../lib/shotlang.js'
+import { DEFAULT_BOOKEND, bookendNarration } from '../../lib/narration-bookend.js'
 import type { StagePort } from '../../kernel/ports.js'
 import type {
   Character,
@@ -398,6 +399,24 @@ export default definePlugin<StagePort>({
           (droppedNarrationCount > 0 ? `, ${droppedNarrationCount} 条旁白被每场景上限裁掉` : '') +
           (suppressedTransitions > 0 ? `, ${suppressedTransitions} 处场景切换未加转场(受 maxInsertRatio 限制)` : ''),
       )
+      // Bookend pass: in a merged cut the narrator belongs at the top and the
+      // tail, not every couple of minutes in the middle. Runs before coverage
+      // so a dropped insert never gets framed or costed.
+      if (options['narrationBookend'] === true) {
+        const bookended = bookendNarration(shots, {
+          headShots: numberOption(options['narrationHeadShots'], DEFAULT_BOOKEND.headShots),
+          tailShots: numberOption(options['narrationTailShots'], DEFAULT_BOOKEND.tailShots),
+        })
+        if (bookended.removedInserts > 0 || bookended.strippedBeats > 0) {
+          deps.log.info(
+            `import-script: 旁白只保留片头片尾 — 中段删除 ${bookended.removedInserts} 个旁白留白镜` +
+              (bookended.strippedBeats > 0 ? `, ${bookended.strippedBeats} 个镜头去掉旁白词` : ''),
+          )
+        }
+        shots.length = 0
+        shots.push(...bookended.shots)
+      }
+
       // Coverage pass: sizes, moves, and two-person dialogue framing. Runs
       // before the on-camera filter so a listener added to a shot counts as
       // appearing and gets a design image.

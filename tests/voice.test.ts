@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest'
-import { narrationReport, resolveCasting, speechCue, validateVoiceCasting } from '../src/lib/voice.js'
+import {
+  narrationPlacement,
+  narrationReport,
+  resolveCasting,
+  speechCue,
+  spokenLine,
+  validateVoiceCasting,
+} from '../src/lib/voice.js'
 import type { Character, Shot } from '../src/kernel/types.js'
 
 const char = (id: string, name: string): Character =>
@@ -187,5 +194,89 @@ describe('resolveCasting — voice as part of the character design', () => {
       briefs: casting.briefs,
     })
     expect(result.warnings.some((w) => w.includes('王队长') && w.includes('沉稳有威'))).toBe(true)
+  })
+})
+
+describe('narrationPlacement — narrator only opens and closes the cut', () => {
+  const cut = [
+    shot({ id: 's1', order: 1, narration: '雨下了三天。' }),
+    shot({ id: 's2', order: 2, dialogue: '你看见了什么？', characterIds: ['c1'] }),
+    shot({ id: 's3', order: 3, narration: '他不知道自己已经被盯上了。' }),
+    shot({ id: 's4', order: 4, narration: '故事从这里开始。' }),
+  ]
+
+  test('head and tail narration is allowed, mid-cut narration is not', () => {
+    // Act
+    const placement = narrationPlacement(cut)
+
+    // Assert
+    expect(placement.allowed.has('s1')).toBe(true)
+    expect(placement.allowed.has('s4')).toBe(true)
+    expect(placement.middle).toEqual(['s3'])
+    expect(placement.findings.some((f) => f.includes('s3') && f.includes('片中'))).toBe(true)
+  })
+
+  test('a shot with a line never carries narration, wherever it sits', () => {
+    const withBoth = [
+      shot({ id: 's1', order: 1, dialogue: '走。', narration: '那是最后一次。', characterIds: ['c1'] }),
+      shot({ id: 's2', order: 2 }),
+    ]
+    const placement = narrationPlacement(withBoth)
+    expect(placement.mixed).toEqual(['s1'])
+    expect(placement.findings.some((f) => f.includes('同时有台词和旁白'))).toBe(true)
+  })
+
+  test('zones span the whole cut, not each episode', () => {
+    const twoEpisodes = [
+      shot({ id: 'e1s1', order: 1, narration: '开场' }),
+      shot({ id: 'e1s2', order: 2 }),
+      { ...shot({ id: 'e2s1', order: 1, narration: '第二集开头' }), episodeId: 'ep2' } as Shot,
+      { ...shot({ id: 'e2s2', order: 2, narration: '收尾' }), episodeId: 'ep2' } as Shot,
+    ]
+    const placement = narrationPlacement(twoEpisodes, {}, ['ep1', 'ep2'])
+    // ep2's first shot is the middle of the assembled video, not an opening.
+    expect(placement.middle).toEqual(['e2s1'])
+    expect(placement.allowed.has('e1s1')).toBe(true)
+    expect(placement.allowed.has('e2s2')).toBe(true)
+  })
+
+  test('a one-shot cut is both opening and closing', () => {
+    const placement = narrationPlacement([shot({ id: 's1', order: 1, narration: '就这一句。' })])
+    expect(placement.middle).toEqual([])
+    expect(placement.findings).toHaveLength(0)
+  })
+})
+
+describe('spokenLine — one shot, one voice', () => {
+  test('a line is spoken by the character; narration in the same shot is dropped', () => {
+    const result = spokenLine(
+      shot({ id: 's1', order: 1, dialogue: '你到底是谁？', narration: '他后来才明白。', characterIds: ['c1'] }),
+      { speakerVoice: 'v-lin', narratorVoice: 'v-narr', includeNarration: true, narrationAllowed: true },
+    )
+    expect(result).toEqual({ text: '你到底是谁？', voice: 'v-lin', role: 'dialogue' })
+  })
+
+  test('narration in an allowed zone is spoken by the narrator', () => {
+    const result = spokenLine(shot({ id: 's1', order: 1, narration: '雨下了三天。' }), {
+      narratorVoice: 'v-narr',
+      includeNarration: true,
+      narrationAllowed: true,
+    })
+    expect(result).toEqual({ text: '雨下了三天。', voice: 'v-narr', role: 'narration' })
+  })
+
+  test('mid-cut narration is skipped rather than voiced', () => {
+    const result = spokenLine(shot({ id: 's3', order: 3, narration: '他不知道。' }), {
+      narratorVoice: 'v-narr',
+      includeNarration: true,
+      narrationAllowed: false,
+    })
+    expect(result).toEqual({ skipped: 'placement' })
+  })
+
+  test('a silent shot is silent', () => {
+    expect(
+      spokenLine(shot({ id: 's1', order: 1 }), { includeNarration: true, narrationAllowed: true }),
+    ).toEqual({ skipped: 'none' })
   })
 })

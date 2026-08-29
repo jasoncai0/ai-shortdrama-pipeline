@@ -76,6 +76,35 @@ export default definePlugin<PostPort>({
         })
       },
 
+      stripAudio: async (clip, store, projectId) => {
+        const clipPath = await store.localPath(clip)
+        const dir = await mkdtemp(join(tmpdir(), 'duanju-mute-'))
+        const out = join(dir, 'muted.mp4')
+
+        // Silent, not audioless: a concat list whose members disagree about
+        // having an audio stream loses audio on the ones that do.
+        await runOrThrow(
+          bin,
+          [
+            '-y', '-hide_banner', '-loglevel', 'error',
+            '-i', clipPath,
+            '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+            '-map', '0:v', '-map', '1:a',
+            '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k',
+            '-shortest',
+            out,
+          ],
+          { timeoutMs: 0, log: deps.log },
+        )
+
+        return store.put(new Uint8Array(await readFile(out)), {
+          kind: 'clip',
+          mime: 'video/mp4',
+          projectId,
+          label: 'muted-clip',
+        })
+      },
+
       mixVoice: async (clip, voice, opts, store, projectId) => {
         const clipPath = await store.localPath(clip)
         const voicePath = await store.localPath(voice)
@@ -294,6 +323,37 @@ export default definePlugin<PostPort>({
           mime: 'application/x-subrip',
           projectId,
           label: 'subtitles',
+        })
+      },
+
+      muteAudio: async (clip, store, projectId) => {
+        const src = await store.localPath(clip)
+        const dir = await mkdtemp(join(tmpdir(), 'duanju-mute-'))
+        const out = join(dir, 'muted.mp4')
+
+        // Video is stream-copied — this must not re-encode the picture just to
+        // drop a soundtrack. A generated silent track keeps every segment's
+        // stream layout identical, which the concat demuxer requires.
+        await runOrThrow(
+          bin,
+          [
+            '-y', '-hide_banner', '-loglevel', 'error',
+            '-i', src,
+            '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000',
+            '-map', '0:v', '-map', '1:a',
+            '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k',
+            '-shortest',
+            out,
+          ],
+          { timeoutMs: 0, log: deps.log },
+        )
+
+        return store.put(new Uint8Array(await readFile(out)), {
+          kind: 'clip',
+          mime: 'video/mp4',
+          projectId,
+          label: `${clip.meta?.label ?? clip.id}-muted`,
+          extra: { mutedFrom: clip.id },
         })
       },
 

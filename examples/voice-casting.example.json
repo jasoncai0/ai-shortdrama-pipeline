@@ -1,6 +1,5 @@
 {
-  "//": "Voice-as-character-design example. The `assets` stage writes voice.profile (and project.narrator.profile) as part of the character design; a human or the agent then picks a provider voiceId that fits each brief. Stage options remain as per-run overrides.",
-
+  "//": "Voice-as-character-design example. The `assets` stage writes voice.profile (and project.narrator.profile) as part of the character design; a human or the agent then picks a provider voiceId that fits each brief. Stage options remain as per-run overrides. The narrator is kept out of the drama: never mixed into a shot that has a line, and only ever heard in the opening and closing shots of the cut.",
   "characterExcerpt": {
     "id": "ch1",
     "name": "林默",
@@ -12,34 +11,36 @@
       "voiceId": "male-qn-badao"
     }
   },
-
   "projectNarratorExcerpt": {
     "narrator": {
       "profile": "中年男声，低沉平稳，纪录片质感，语速慢——与所有角色音明显区分",
       "voiceId": "presenter_male"
     }
   },
-
   "dubStageConfig": {
-    "//": "No voices/narratorVoice needed when characters and narrator are already cast in the project. Options below OVERRIDE the designed casting for one run (e.g. switching speech providers) without editing any character.",
+    "//": "No voices/narratorVoice needed when characters and narrator are already cast in the project. Options below OVERRIDE the designed casting for one run (e.g. switching speech providers) without editing any character. narrationOpening/ClosingShots widen the only zones where the narrator may speak; a shot carrying dialogue is voiced by that character alone regardless.",
     "id": "dub",
     "options": {
-      "voices": { "林默": "alt-provider-voice-01" },
+      "voices": {
+        "林默": "alt-provider-voice-01"
+      },
       "narratorVoice": "alt-provider-narrator",
       "strictCasting": true,
-      "includeNarration": true
+      "includeNarration": true,
+      "narrationOpeningShots": 1,
+      "narrationClosingShots": 1
     }
   },
-
   "voiceCheckStageConfig": {
     "id": "voice-check",
     "options": {
       "maxNarrationRatio": 0.3,
       "maxNarrationRun": 2,
-      "failOn": "errors"
+      "failOn": "errors",
+      "narrationOpeningShots": 1,
+      "narrationClosingShots": 1
     }
   },
-
   "agentUsage": {
     "//": "The agent can cast a voice that fits the brief without touching config files.",
     "tool": "update_character",
@@ -47,6 +48,26 @@
       "name": "王队长",
       "voiceProfile": "四十岁男声，沉稳有威，语速中等",
       "voiceId": "male-chenwen-daqi"
+    }
+  },
+  "narrationPlacementExample": {
+    "//": "Shots in playback order. Only the head and tail may carry narration; ep1-s02 would be reported by voice-check and skipped by dub.",
+    "ep1-s01": {
+      "narration": "雨下了三天。",
+      "verdict": "spoken — opening"
+    },
+    "ep1-s02": {
+      "narration": "他不知道自己被盯上了。",
+      "verdict": "SKIPPED — 片中不使用旁白音"
+    },
+    "ep1-s03": {
+      "dialogue": "你到底是谁？",
+      "narration": "他后来才明白。",
+      "verdict": "只说台词，旁白被丢弃 — 有对白不混旁白音"
+    },
+    "ep1-s04": {
+      "narration": "故事从这里开始。",
+      "verdict": "spoken — closing"
     }
   }
 }

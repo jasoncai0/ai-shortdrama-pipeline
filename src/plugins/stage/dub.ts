@@ -4,7 +4,7 @@ import { findCharacter } from '../../kernel/types.js'
 import { mapPool } from '../../lib/pool.js'
 import { describeError } from '../../kernel/errors.js'
 import { billedGenerate, summarize } from './shared.js'
-import { resolveCasting, validateVoiceCasting } from '../../lib/voice.js'
+import { narrationPlacement, resolveCasting, spokenLine, validateVoiceCasting } from '../../lib/voice.js'
 import type { StagePort } from '../../kernel/ports.js'
 import type { AssetRef, Shot } from '../../kernel/types.js'
 
@@ -23,6 +23,12 @@ import type { AssetRef, Shot } from '../../kernel/types.js'
  * and is reported — a silent fallback would let two brothers share a voice
  * without anyone noticing.
  *
+ * The narrator is kept strictly out of the drama: a shot carrying a line is
+ * voiced by that character alone (narration written into it is dropped, never
+ * mixed in), and narration is only ever spoken in the opening and closing
+ * shots of the cut. Both are decided here, before synthesis, so the middle of
+ * the video is never paid for in narrator takes.
+ *
  * Runs after `videos` and before `export`, which prefers `voicedClip`.
  *
  * Options:
@@ -34,6 +40,8 @@ import type { AssetRef, Shot } from '../../kernel/types.js'
  *   bedGainDb       clip's own audio while the voice plays, default -12
  *   padToVoice      hold the last frame when a line outruns the shot (default false)
  *   includeNarration speak `shot.narration` too (default true)
+ *   narrationOpeningShots  how many head shots may carry narration (default 1)
+ *   narrationClosingShots  how many tail shots may carry narration (default 1)
  *   strictCasting   fail when casting rules are violated (default true):
  *                   narration without a dedicated narratorVoice, or a
  *                   character cast on the narrator's timbre
@@ -98,9 +106,38 @@ export default definePlugin<StagePort>({
 
       const uncast = new Set<string>()
 
+      // Where the narrator may speak at all — head and tail of the cut only.
+      const placement = narrationPlacement(
+        project.shots,
+        {
+          openingShots: numberOption(ctx.options['narrationOpeningShots'], 1),
+          closingShots: numberOption(ctx.options['narrationClosingShots'], 1),
+        },
+        project.episodes.map((e) => e.id),
+      )
+      for (const finding of placement.findings) log.warn(`dub: ${finding}`)
+
+      // Resolve what each shot says, and in whose voice, before spending.
+      const lines = new Map<string, { text: string; voice?: string; role: string }>()
+      for (const shot of project.shots) {
+        const speakerName = shot.dialogue?.trim()
+          ? shot.characterIds.map((id) => findCharacter(project, id)?.name).find(Boolean)
+          : undefined
+        const speakerVoice = speakerName ? asString(voices[speakerName]) : undefined
+        const resolved = spokenLine(shot, {
+          speakerVoice,
+          narratorVoice,
+          includeNarration,
+          narrationAllowed: placement.allowed.has(shot.id),
+        })
+        if ('skipped' in resolved) continue
+        if (resolved.role === 'dialogue' && speakerName && !speakerVoice) uncast.add(speakerName)
+        lines.set(shot.id, resolved)
+      }
+
       const pending = project.shots
         .filter((shot) => !shot.voicedClip && shot.clip)
-        .filter((shot) => spoken(shot, includeNarration).length > 0)
+        .filter((shot) => lines.has(shot.id))
         .slice(0, ctx.limitShots ?? undefined)
 
       if (pending.length === 0) {
@@ -110,15 +147,9 @@ export default definePlugin<StagePort>({
       log.info(`dub: voicing ${pending.length} shots via ${ports.speech.name}`)
 
       const results = await mapPool(pending, limit, async (shot) => {
-        const text = spoken(shot, includeNarration)
-
-        // Narration is the narrator's, even in a shot that also has dialogue:
-        // whoever speaks first owns the take.
-        const speakerName = shot.dialogue?.trim()
-          ? shot.characterIds.map((id) => findCharacter(project, id)?.name).find(Boolean)
-          : undefined
-        const voice = speakerName ? asString(voices[speakerName]) : narratorVoice
-        if (speakerName && !voice) uncast.add(speakerName)
+        const resolved = lines.get(shot.id) as { text: string; voice?: string }
+        const text = resolved.text
+        const voice = resolved.voice
 
         const say = (body: string, suffix: string): Promise<AssetRef> => {
           const key = idempotencyKey('dub', `${shot.id}${suffix}`, { text: body, voice, speed })
@@ -195,7 +226,11 @@ export default definePlugin<StagePort>({
         )
       }
       summarize(log, 'dub', pending.length, failures)
-      ctx.emit('dub', { voiced: voicedById.size, uncast: [...uncast] })
+      ctx.emit('dub', {
+        voiced: voicedById.size,
+        uncast: [...uncast],
+        narrationSkipped: { mixed: placement.mixed, middle: placement.middle },
+      })
 
       return {
         kind: 'ok',
@@ -212,12 +247,6 @@ export default definePlugin<StagePort>({
     },
   }),
 })
-
-/** Dialogue first, then narration — the order they would be heard. */
-const spoken = (shot: Shot, includeNarration: boolean): string =>
-  [shot.dialogue?.trim(), includeNarration ? shot.narration?.trim() : undefined]
-    .filter((part): part is string => Boolean(part))
-    .join(' ')
 
 const numberOption = (value: unknown, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback

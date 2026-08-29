@@ -200,6 +200,53 @@ describe('dub stage', () => {
     expect(h.synthesized).toEqual([])
   })
 
+  test('a shot with a line is never mixed with the narrator voice', async () => {
+    // Arrange — the shot carries both a line and narration
+    const h = harness()
+    await run(
+      project(
+        [shot({ dialogue: '你到底是谁？', narration: '他后来才明白。', characterIds: ['ch1'] })],
+        [{ id: 'ch1', name: '林默', appearance: 'x' }],
+      ),
+      { voices: { 林默: 'male-1' }, narratorVoice: 'narrator-1' },
+      h,
+    )
+
+    // Assert — only the line is spoken, in the character's voice
+    expect(h.synthesized).toEqual([{ text: '你到底是谁？', voice: 'male-1' }])
+  })
+
+  test('narration in the middle of the cut is never voiced', async () => {
+    const h = harness()
+    await run(
+      project([
+        shot({ id: 's1', order: 1, narration: '开场。', clip: ref('clip-s1') }),
+        shot({ id: 's2', order: 2, narration: '中间的旁白。', clip: ref('clip-s2') }),
+        shot({ id: 's3', order: 3, narration: '收尾。', clip: ref('clip-s3') }),
+      ]),
+      { narratorVoice: 'narrator-1' },
+      h,
+    )
+
+    expect(h.synthesized.map((s) => s.text)).toEqual(['开场。', '收尾。'])
+  })
+
+  test('a wider opening zone lets more head shots narrate', async () => {
+    const h = harness()
+    await run(
+      project([
+        shot({ id: 's1', order: 1, narration: '开场一。', clip: ref('clip-s1') }),
+        shot({ id: 's2', order: 2, narration: '开场二。', clip: ref('clip-s2') }),
+        shot({ id: 's3', order: 3, narration: '中间。', clip: ref('clip-s3') }),
+        shot({ id: 's4', order: 4, narration: '收尾。', clip: ref('clip-s4') }),
+      ]),
+      { narratorVoice: 'narrator-1', narrationOpeningShots: 2 },
+      h,
+    )
+
+    expect(h.synthesized.map((s) => s.text)).toEqual(['开场一。', '开场二。', '收尾。'])
+  })
+
   test('records the voiced clip on the shot, leaving the silent one intact', async () => {
     const { outcome } = await run(project([shot({ dialogue: 'line' })]))
     expect(outcome.kind).toBe('ok')

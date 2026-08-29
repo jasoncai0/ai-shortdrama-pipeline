@@ -14,9 +14,17 @@ import type { Character, Project, Shot } from '../kernel/types.js'
  *     one timbre is the audio version of two leads sharing one face.
  *  4. Narration is a transition device, not the delivery mechanism: its share
  *     of shots is capped and long consecutive narration runs are flagged.
+ *  5. The narrator voice never shares a shot with dialogue. A shot with a line
+ *     is that character's; narration written into it is dropped rather than
+ *     spoken, because two voices over one performance is the overlap this
+ *     whole module exists to prevent.
+ *  6. The narrator only opens and closes the cut. Narration belongs to the
+ *     first and last shots of the assembled video; anywhere in the middle it
+ *     is talking over the drama instead of framing it.
  *
- * `dub` enforces 1–3 before spending anything; `voice-check` lints 1–4 right
- * after `shots`, when a fix costs one regeneration instead of a re-dub.
+ * `dub` enforces 1–3, 5 and 6 before spending anything; `voice-check` lints
+ * all of them right after `shots`, when a fix costs one regeneration instead
+ * of a re-dub.
  */
 
 /**
@@ -207,4 +215,120 @@ export const speechCue = (
     return 'no on-screen character is speaking; mouths stay closed or neutral (voice-over only)'
   }
   return ''
+}
+
+export interface NarrationPlacementPolicy {
+  /** Shots at the head of the cut that may carry narration. Default 1. */
+  readonly openingShots?: number
+  /** Shots at the tail of the cut that may carry narration. Default 1. */
+  readonly closingShots?: number
+}
+
+export interface NarrationPlacement {
+  /** Shot ids whose narration may be spoken: the opening and closing zones. */
+  readonly allowed: ReadonlySet<string>
+  /** Narration written into the middle of the cut — never spoken. */
+  readonly middle: readonly string[]
+  /** Shots carrying both a line and narration — the narration is dropped. */
+  readonly mixed: readonly string[]
+  readonly findings: readonly string[]
+}
+
+/**
+ * Shots in playback order: episode order first, shot order within it. Export
+ * concatenates the whole project into one cut, so "the start of the video" is
+ * the first shot of the first episode, not of each episode.
+ */
+export const orderedShots = (
+  shots: readonly Shot[],
+  episodeIds?: readonly string[],
+): readonly Shot[] => {
+  const rank = new Map((episodeIds ?? []).map((id, index) => [id, index]))
+  const fallback = (id: string): number => {
+    const digits = id.match(/\d+/)
+    return digits ? Number(digits[0]) : Number.MAX_SAFE_INTEGER
+  }
+  return [...shots].sort((a, b) => {
+    const ea = rank.get(a.episodeId) ?? fallback(a.episodeId)
+    const eb = rank.get(b.episodeId) ?? fallback(b.episodeId)
+    return ea !== eb ? ea - eb : a.order - b.order
+  })
+}
+
+/**
+ * Rules 5 and 6 — where the narrator is allowed to speak at all.
+ *
+ * Zones are computed over the whole cut. A one-shot project is both the
+ * opening and the closing, which is correct: there is no middle to intrude on.
+ */
+export const narrationPlacement = (
+  shots: readonly Shot[],
+  policy: NarrationPlacementPolicy = {},
+  episodeIds?: readonly string[],
+): NarrationPlacement => {
+  const openingShots = Math.max(0, policy.openingShots ?? 1)
+  const closingShots = Math.max(0, policy.closingShots ?? 1)
+  const ordered = orderedShots(shots, episodeIds)
+
+  const allowed = new Set<string>()
+  for (const shot of ordered.slice(0, openingShots)) allowed.add(shot.id)
+  for (const shot of ordered.slice(Math.max(0, ordered.length - closingShots))) {
+    allowed.add(shot.id)
+  }
+
+  const middle: string[] = []
+  const mixed: string[] = []
+  const findings: string[] = []
+
+  for (const shot of ordered) {
+    if (!shot.narration?.trim()) continue
+    if (shot.dialogue?.trim()) {
+      mixed.push(shot.id)
+      continue
+    }
+    if (!allowed.has(shot.id)) middle.push(shot.id)
+  }
+
+  if (mixed.length > 0) {
+    findings.push(
+      `${mixed.join('、')} 同时有台词和旁白 — 有对白的镜头不使用旁白音，旁白会被丢弃；把这些信息写进台词或画面。`,
+    )
+  }
+  if (middle.length > 0) {
+    findings.push(
+      `${middle.join('、')} 的旁白位于片中 — 旁白只用在成片的最开头（前 ${openingShots} 镜）和最结尾（后 ${closingShots} 镜），中间段不使用旁白音。`,
+    )
+  }
+
+  return { allowed, middle, mixed, findings }
+}
+
+/**
+ * What `dub` should actually say for one shot, and in whose voice.
+ *
+ * `undefined` means the shot is silent: either it carries nothing spoken, or
+ * its narration is disallowed by placement (mid-cut, or sharing a shot with a
+ * line). The reason is returned so the caller can report it rather than
+ * dropping script silently.
+ */
+export const spokenLine = (
+  shot: Shot,
+  context: {
+    readonly speakerVoice?: string
+    readonly narratorVoice?: string
+    readonly includeNarration: boolean
+    readonly narrationAllowed: boolean
+  },
+):
+  | { readonly text: string; readonly voice?: string; readonly role: 'dialogue' | 'narration' }
+  | { readonly skipped: 'mixed' | 'placement' | 'none' } => {
+  const line = shot.dialogue?.trim()
+  const narration = shot.narration?.trim()
+
+  // Rule 5: the line owns the shot. Narration alongside it is never voiced.
+  if (line) return { text: line, voice: context.speakerVoice, role: 'dialogue' }
+  if (!narration) return { skipped: 'none' }
+  if (!context.includeNarration) return { skipped: 'none' }
+  if (!context.narrationAllowed) return { skipped: 'placement' }
+  return { text: narration, voice: context.narratorVoice, role: 'narration' }
 }

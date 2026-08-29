@@ -379,6 +379,18 @@ export interface VoiceMixOptions {
 
 export interface PostPort extends Plugin {
   /**
+   * Replaces a clip's audio with silence, keeping the picture untouched.
+   *
+   * Generative video models return their own invented soundtrack — ambience,
+   * and often speech-like noise. On a dubbed shot that track is only ever a
+   * bed: `mixVoice` ducks it under the real voice. On a shot with no dub it
+   * plays at full level, so an empty 留白 insert can appear to carry a
+   * voice-over that was never recorded. Silencing those shots leaves the score
+   * as the only thing heard over them, which is what a breathing shot is for.
+   */
+  muteAudio?(clip: AssetRef, store: AssetStorePort, projectId: string): Promise<AssetRef>
+
+  /**
    * Measured runtime of a rendered asset. Everything that places something on
    * a timeline needs this, and they all have to agree — a model asked for 4s
    * returns 4.096s, and two callers measuring differently drift apart.
@@ -405,6 +417,14 @@ export interface PostPort extends Plugin {
     store: AssetStorePort,
     projectId: string,
   ): Promise<AssetRef>
+  /**
+   * Returns the clip with its own audio removed.
+   *
+   * A generative video model invents an audio track, and that track performs
+   * the same line the pipeline is dubbing — a second voice under every shot.
+   * When we own the audio layer, the model's take has to go.
+   */
+  stripAudio?(clip: AssetRef, store: AssetStorePort, projectId: string): Promise<AssetRef>
   /**
    * Lays a voice track over one clip. Optional so an adapter can ship music
    * and subtitles without speech support.
