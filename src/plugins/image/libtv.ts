@@ -56,7 +56,9 @@ export default definePlugin<ImagePort>({
         // canvas node names in AssetRef.meta.libtvNodeName when we created
         // them; anything else cannot be wired as an edge.
         const left = (req.refs ?? [])
-          .map((ref) => asString(ref.meta['libtvNodeName']))
+          // Node key first: globally unique, immune to display-name collisions
+          // between projects that share a canvas.
+          .map((ref) => asString(ref.meta['libtvNodeKey']) ?? asString(ref.meta['libtvNodeName']))
           .filter((n): n is string => Boolean(n))
 
         if ((req.refs?.length ?? 0) > left.length) {

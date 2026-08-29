@@ -55,7 +55,10 @@ export default definePlugin<VideoPort>({
         const left: string[] = []
         const pushRef = (ref: AssetRef | undefined, what: string): void => {
           if (!ref) return
-          const canvasName = asString(ref.meta['libtvNodeName'])
+          // The node key is globally unique; the display name is not — two
+          // projects sharing one canvas can (and did) collide on it.
+          const canvasName =
+            asString(ref.meta['libtvNodeKey']) ?? asString(ref.meta['libtvNodeName'])
           if (!canvasName) {
             throw providerError(
               `libtv video: ${what} for "${label}" has no canvas node.`,
@@ -84,7 +87,10 @@ export default definePlugin<VideoPort>({
             mode = 'mixed2video'
           }
           for (const ref of identity) {
-            const canvasName = asString(ref.meta['libtvNodeName'])
+            // The node key is globally unique; the display name is not — two
+          // projects sharing one canvas can (and did) collide on it.
+          const canvasName =
+            asString(ref.meta['libtvNodeKey']) ?? asString(ref.meta['libtvNodeName'])
             if (!canvasName) {
               deps.log.warn(
                 `libtv video: identity reference for "${label}" has no canvas node and was dropped.`,
