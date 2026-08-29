@@ -1,4 +1,5 @@
 import { stateError } from '../../kernel/errors.js'
+import { withHeartbeat } from './shared.js'
 import { definePlugin } from '../../kernel/registry.js'
 import type { StagePort, SubtitleCue } from '../../kernel/ports.js'
 import { renderedClip } from '../../kernel/types.js'
@@ -114,7 +115,10 @@ export default definePlugin<StagePort>({
         }
       }
 
-      const deliverable = await ports.post.burnSubtitles(
+      const deliverable = await withHeartbeat(
+        ctx,
+        'burning subtitles',
+        ports.post.burnSubtitles(
         target,
         srt,
         {
@@ -128,6 +132,7 @@ export default definePlugin<StagePort>({
         },
         ports.assetStore,
         project.id,
+      ),
       )
 
       const path = await ports.assetStore.localPath(deliverable).catch(() => deliverable.uri)

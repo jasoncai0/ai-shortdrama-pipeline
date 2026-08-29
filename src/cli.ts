@@ -404,7 +404,11 @@ const execute = async (
     onEvent: (stage, event, payload) => {
       if (event === 'progress') {
         const info = payload as { item?: number; total?: number; note?: string }
-        log.info(`${stage}: ${info.item}/${info.total}${info.note ? ` (${info.note})` : ''}`)
+        // A counted stage reports item/total; a continuous one (an encode
+        // reporting elapsed output) reports only a note.
+        const counted = info.total !== undefined ? `${info.item ?? 0}/${info.total}` : undefined
+        const parts = [counted, info.note].filter(Boolean)
+        if (parts.length > 0) log.info(`${stage}: ${parts.join(' ')}`)
       } else {
         log.debug(`event ${stage}/${event}`, payload)
       }

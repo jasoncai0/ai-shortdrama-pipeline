@@ -1,4 +1,5 @@
 import { stateError } from '../../kernel/errors.js'
+import { withHeartbeat } from './shared.js'
 import { definePlugin } from '../../kernel/registry.js'
 import { renderedClip } from '../../kernel/types.js'
 import { DEFAULT_PLAN, orderedShots, planIntroCards } from '../../lib/introcards.js'
@@ -163,7 +164,11 @@ export default definePlugin<StagePort>({
         })
       }
 
-      const introCut = await overlayCards(source, overlays, ports.assetStore, project.id)
+      const introCut = await withHeartbeat(
+        ctx,
+        `compositing ${overlays.length} intro card(s)`,
+        overlayCards(source, overlays, ports.assetStore, project.id),
+      )
       const path = await ports.assetStore.localPath(introCut).catch(() => introCut.uri)
       log.info(`intro-cards: ${path}`)
       ctx.emit('intro-cards', {

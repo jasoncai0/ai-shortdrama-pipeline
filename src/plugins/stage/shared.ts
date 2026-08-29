@@ -72,3 +72,38 @@ export const summarize = (
     log.warn(`  ${failure.subject}: ${describeError(failure.error)}`)
   }
 }
+
+/**
+ * Keeps the pipeline watchdog fed while a single long call is in flight.
+ *
+ * Most stages beat the watchdog naturally: they emit once per item, so a
+ * 100-shot stage sends 100 liveness signals. The composite stages do not —
+ * `export`, `music`, `intro-cards` and `subtitles` each make ONE ffmpeg call
+ * that re-encodes the whole episode. On a 10-minute cut with ten overlays that
+ * legitimately runs past the 15-minute stall timeout, and the watchdog fails a
+ * stage whose ffmpeg is about to succeed — which is exactly what happened: the
+ * finished mp4 landed two seconds after the stage was declared stalled.
+ *
+ * A periodic beat says the truth ("still working on one long operation")
+ * without weakening the timeout for calls that really do hang: if the process
+ * dies, the promise rejects and the beats stop with it.
+ */
+export const withHeartbeat = async <T>(
+  ctx: { emit(event: string, payload?: unknown): void },
+  label: string,
+  work: Promise<T>,
+  everyMs = 30_000,
+): Promise<T> => {
+  const started = Date.now()
+  const timer = setInterval(() => {
+    ctx.emit('progress', {
+      note: `${label} — ${Math.round((Date.now() - started) / 1000)}s`,
+    })
+  }, everyMs)
+  timer.unref?.()
+  try {
+    return await work
+  } finally {
+    clearInterval(timer)
+  }
+}

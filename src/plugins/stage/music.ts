@@ -3,7 +3,7 @@ import { stateError } from '../../kernel/errors.js'
 import { idempotencyKey } from '../../kernel/idem.js'
 import { definePlugin } from '../../kernel/registry.js'
 import { checkLicence, needsAttribution } from '../../lib/licence.js'
-import { billedGenerate } from './shared.js'
+import { billedGenerate, withHeartbeat } from './shared.js'
 import type { MusicBrief, MusicCandidate, StagePort } from '../../kernel/ports.js'
 import type { MusicTrack } from '../../kernel/types.js'
 
@@ -128,7 +128,10 @@ export default definePlugin<StagePort>({
         log.warn(`  ${track.licence.attribution}`)
       }
 
-      const scoredCut = await ports.post.mixMusic(
+      const scoredCut = await withHeartbeat(
+        ctx,
+        'mixing the score',
+        ports.post.mixMusic(
         cut,
         asset,
         {
@@ -140,6 +143,7 @@ export default definePlugin<StagePort>({
         },
         ports.assetStore,
         project.id,
+      ),
       )
 
       ctx.emit('music', { title: track.title, licence: track.licence.code })

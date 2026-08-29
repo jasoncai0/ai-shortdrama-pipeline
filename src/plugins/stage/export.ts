@@ -1,3 +1,4 @@
+import { withHeartbeat } from './shared.js'
 import { definePlugin } from '../../kernel/registry.js'
 import type { StagePort } from '../../kernel/ports.js'
 import { renderedClip } from '../../kernel/types.js'
@@ -42,7 +43,10 @@ export default definePlugin<StagePort>({
         log.warn(`export: ${missing}/${ordered.length} shots have no clip and are skipped`)
       }
 
-      const finalCut = await ports.export.concat(
+      const finalCut = await withHeartbeat(
+        ctx,
+        'concatenating the cut',
+        ports.export.concat(
         clips,
         {
           ratio: project.ratio,
@@ -55,6 +59,7 @@ export default definePlugin<StagePort>({
         },
         ports.assetStore,
         project.id,
+      ),
       )
 
       const path = await ports.assetStore.localPath(finalCut).catch(() => finalCut.uri)
