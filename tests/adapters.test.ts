@@ -230,7 +230,7 @@ describe('libtv image adapter', () => {
 
     const ref: AssetRef = {
       id: 'r1',
-      uri: 'file:///tmp/r1.png',
+      uri: 'https://cdn.example/r1.png',
       mime: 'image/png',
       meta: { libtvNodeName: 'canvas-ref-1' },
     }
@@ -259,10 +259,34 @@ describe('libtv image adapter', () => {
     const { bin, argsFile } = await fakeLibtv('img-orphan', 'https://cdn/z.png')
     const port = (await libtvImage.create({ bin, canvas: 'c-uuid' }, deps())) as ImagePort
 
-    const orphan: AssetRef = { id: 'r', uri: 'file:///tmp/r.png', mime: 'image/png', meta: {} }
+    const orphan: AssetRef = { id: 'r', uri: 'https://cdn.example/r.png', mime: 'image/png', meta: {} }
     await port.generate({ prompt: 'p', refs: [orphan], idempotencyKey: 'k' })
 
     expect(await argsOf(argsFile)).toContain('modeType=text2image')
+  })
+
+  test('a local-file reference is uploaded and wired by the uploaded node key', async () => {
+    const { bin, argsFile } = await fakeLibtv('img-upload', 'https://cdn/u.png')
+    const port = (await libtvImage.create({ bin, canvas: 'c-uuid' }, deps())) as ImagePort
+
+    // A real file on disk, because the adapter now uploads the bytes it has
+    // instead of trusting a canvas node that may have been re-keyed.
+    const local = join(work, 'ref-upload.png')
+    await writeFile(local, Buffer.from([1]))
+    const ref: AssetRef = {
+      id: 'ref-upload-asset',
+      uri: `file://${local}`,
+      mime: 'image/png',
+      meta: { libtvNodeName: 'stale-node-name' },
+    }
+    await port.generate({ prompt: 'p', refs: [ref], idempotencyKey: 'k', label: 'up1' })
+
+    const args = await argsOf(argsFile)
+    expect(args).toContain('modeType=image2image')
+    // n-final is what the fake bin returns as the uploaded node's key — the
+    // stale canvas name must NOT be used.
+    expect(args).toContain('n-final')
+    expect(args).not.toContain('stale-node-name')
   })
 
   test('returns the URL from the terminal JSON document, not the created one', async () => {
@@ -285,7 +309,7 @@ describe('libtv video adapter', () => {
 
     const still: AssetRef = {
       id: 's',
-      uri: 'file:///tmp/s.png',
+      uri: 'https://cdn.example/s.png',
       mime: 'image/png',
       meta: { libtvNodeName: 'canvas-still-1' },
     }
@@ -332,7 +356,7 @@ describe('libtv video adapter', () => {
     const { bin } = await fakeLibtv('vid-noref', 'https://cdn/b.mp4')
     const port = (await libtvVideo.create({ bin, canvas: 'c' }, deps())) as VideoPort
 
-    const orphan: AssetRef = { id: 's', uri: 'file:///tmp/s.png', mime: 'image/png', meta: {} }
+    const orphan: AssetRef = { id: 's', uri: 'https://cdn.example/s.png', mime: 'image/png', meta: {} }
     await expect(
       port.generate({ mode: 'singleImage2video', prompt: 'p', firstFrame: orphan, idempotencyKey: 'k' }),
     ).rejects.toThrow(/no canvas node/)
@@ -394,13 +418,13 @@ describe('libtv video adapter — identity references', () => {
 
     const still: AssetRef = {
       id: 'still',
-      uri: 'file:///tmp/s.png',
+      uri: 'https://cdn.example/s.png',
       mime: 'image/png',
       meta: { libtvNodeName: 'canvas-still-1' },
     }
     const base: AssetRef = {
       id: 'base',
-      uri: 'file:///tmp/b.png',
+      uri: 'https://cdn.example/b.png',
       mime: 'image/png',
       meta: { libtvNodeName: 'canvas-base-1' },
     }
@@ -426,7 +450,7 @@ describe('libtv video adapter — identity references', () => {
 
     const shared: AssetRef = {
       id: 'x',
-      uri: 'file:///tmp/x.png',
+      uri: 'https://cdn.example/x.png',
       mime: 'image/png',
       meta: { libtvNodeName: 'canvas-shared' },
     }

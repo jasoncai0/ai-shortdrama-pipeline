@@ -132,6 +132,34 @@ export class LibtvClient {
     return node
   }
 
+  /** localPath → uploaded resource nodeKey, so one run uploads each file once. */
+  private readonly uploads = new Map<string, string>()
+
+  /**
+   * Uploads a local media file as a resource node and returns its node key.
+   *
+   * References used to point at the canvas node that originally generated an
+   * asset — but recreations delete and re-key those nodes, display names
+   * collide across projects sharing a canvas, and either way a reference died
+   * with its node. Uploading the local file we already have makes the
+   * reference self-contained: the node is fresh, uniquely keyed, and named by
+   * the asset's content id so a human can still find it on the canvas.
+   */
+  async ensureUploaded(localPath: string, assetId: string): Promise<string> {
+    const cached = this.uploads.get(localPath)
+    if (cached) return cached
+
+    const name = `up-${assetId.slice(0, 12)}`
+    const result = await runOrThrow(
+      this.opts.bin,
+      ['upload', name, '-p', this.opts.projectUuid, '--file', localPath],
+      { cwd: this.opts.cwd, log: this.opts.log, timeoutMs: 300_000 },
+    )
+    const node = parseJsonStdout<{ nodeKey: string }>(result.stdout, `libtv upload ${name}`)
+    this.uploads.set(localPath, node.nodeKey)
+    return node.nodeKey
+  }
+
   async deleteNode(name: string): Promise<void> {
     await run(this.opts.bin, ['node', 'delete', name, '-p', this.opts.projectUuid], {
       cwd: this.opts.cwd,

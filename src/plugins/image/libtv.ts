@@ -55,11 +55,17 @@ export default definePlugin<ImagePort>({
         // Reference nodes must already exist on the canvas. We carry their
         // canvas node names in AssetRef.meta.libtvNodeName when we created
         // them; anything else cannot be wired as an edge.
-        const left = (req.refs ?? [])
-          // Node key first: globally unique, immune to display-name collisions
-          // between projects that share a canvas.
-          .map((ref) => asString(ref.meta['libtvNodeKey']) ?? asString(ref.meta['libtvNodeName']))
-          .filter((n): n is string => Boolean(n))
+        // References are re-uploaded from the local store — canvas nodes get
+        // deleted and re-keyed by recreations, and display names collide
+        // between projects sharing a canvas. See the video adapter.
+        const left: string[] = []
+        for (const ref of req.refs ?? []) {
+          const local = ref.uri.startsWith('file://') ? ref.uri.slice('file://'.length) : undefined
+          const canvasName = local
+            ? await client.ensureUploaded(local, ref.id)
+            : (asString(ref.meta['libtvNodeKey']) ?? asString(ref.meta['libtvNodeName']))
+          if (canvasName && !left.includes(canvasName)) left.push(canvasName)
+        }
 
         if ((req.refs?.length ?? 0) > left.length) {
           deps.log.warn(
