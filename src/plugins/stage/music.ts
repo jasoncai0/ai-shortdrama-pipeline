@@ -4,7 +4,7 @@ import { idempotencyKey } from '../../kernel/idem.js'
 import { definePlugin } from '../../kernel/registry.js'
 import { checkLicence, needsAttribution } from '../../lib/licence.js'
 import { billedGenerate, withHeartbeat } from './shared.js'
-import type { MusicBrief, MusicCandidate, StagePort } from '../../kernel/ports.js'
+import type { MixOptions, MusicBrief, MusicCandidate, StagePort } from '../../kernel/ports.js'
 import type { MusicTrack } from '../../kernel/types.js'
 
 /**
@@ -42,6 +42,27 @@ export default definePlugin<StagePort>({
       if (project.music && project.scoredCut && ctx.options['overwrite'] !== true) {
         log.info('music: already scored')
         return { kind: 'ok', project }
+      }
+
+      // A re-cut invalidates the mix, not the choice of score. Re-picking here
+      // would search — and for a generating source, pay — for a different track
+      // than the one already approved for this project, so an existing choice
+      // is carried straight to the mix. `overwrite` forces a fresh search.
+      const existing = ctx.options['overwrite'] !== true ? project.music : undefined
+      if (existing) {
+        log.info(`music: reusing "${existing.title}" — remixing the new cut`)
+        const remixed = await withHeartbeat(
+          ctx,
+          'mixing the score',
+          ports.post.mixMusic(cut, existing.asset, mixOptions(ctx), ports.assetStore, project.id),
+        )
+        const remixedPath = await ports.assetStore.localPath(remixed).catch(() => remixed.uri)
+        log.info(`music: ${remixedPath}`)
+        ctx.emit('music', { reused: true, title: existing.title })
+        return {
+          kind: 'ok',
+          project: { ...project, scoredCut: remixed, updatedAt: new Date().toISOString() },
+        }
       }
 
       const runtime = project.shots.reduce((sum, s) => sum + s.durationSeconds, 0)
@@ -131,19 +152,7 @@ export default definePlugin<StagePort>({
       const scoredCut = await withHeartbeat(
         ctx,
         'mixing the score',
-        ports.post.mixMusic(
-        cut,
-        asset,
-        {
-          musicGainDb: numberOption(ctx.options['musicGainDb'], -20),
-          fadeInSeconds: numberOption(ctx.options['fadeInSeconds'], 1.5),
-          fadeOutSeconds: numberOption(ctx.options['fadeOutSeconds'], 2),
-          loop: ctx.options['loop'] !== false,
-          duckUnderDialogue: ctx.options['duckUnderDialogue'] !== false,
-        },
-        ports.assetStore,
-        project.id,
-      ),
+        ports.post.mixMusic(cut, asset, mixOptions(ctx), ports.assetStore, project.id),
       )
 
       ctx.emit('music', { title: track.title, licence: track.licence.code })
@@ -228,6 +237,15 @@ const toTrack = (c: MusicCandidate, provider: string): Omit<MusicTrack, 'asset'>
   creator: c.creator,
   tags: c.tags,
   licence: c.licence,
+})
+
+/** One definition of the mix settings, shared by a fresh score and a remix. */
+const mixOptions = (ctx: { options: Record<string, unknown> }): MixOptions => ({
+  musicGainDb: numberOption(ctx.options['musicGainDb'], -20),
+  fadeInSeconds: numberOption(ctx.options['fadeInSeconds'], 1.5),
+  fadeOutSeconds: numberOption(ctx.options['fadeOutSeconds'], 2),
+  loop: ctx.options['loop'] !== false,
+  duckUnderDialogue: ctx.options['duckUnderDialogue'] !== false,
 })
 
 const numberOption = (value: unknown, fallback: number): number =>

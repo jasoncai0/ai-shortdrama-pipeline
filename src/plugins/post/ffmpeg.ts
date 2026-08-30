@@ -331,6 +331,26 @@ export default definePlugin<PostPort>({
         const dir = await mkdtemp(join(tmpdir(), 'duanju-mute-'))
         const out = join(dir, 'muted.mp4')
 
+        // The silent track MUST match the source's sample rate and channel
+        // count. The concat demuxer reads stream parameters from the first
+        // segment and reinterprets every later one against them, so a 48kHz
+        // silence spliced between 32kHz clips makes the rest of the reel play
+        // fast and then run out of samples — audible as "sped-up, then silent".
+        const probed = await run(
+          bin.replace(/ffmpeg$/, 'ffprobe'),
+          [
+            '-v', 'quiet',
+            '-select_streams', 'a:0',
+            '-show_entries', 'stream=sample_rate,channels',
+            '-of', 'csv=p=0',
+            src,
+          ],
+          { timeoutMs: 30_000, log: deps.log },
+        )
+        const [rateText, channelsText] = probed.stdout.trim().split(',')
+        const sampleRate = Number(rateText) > 0 ? Number(rateText) : 48000
+        const channels = Number(channelsText) === 1 ? 'mono' : 'stereo'
+
         // Video is stream-copied — this must not re-encode the picture just to
         // drop a soundtrack. A generated silent track keeps every segment's
         // stream layout identical, which the concat demuxer requires.
@@ -339,7 +359,7 @@ export default definePlugin<PostPort>({
           [
             '-y', '-hide_banner', '-loglevel', 'error',
             '-i', src,
-            '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000',
+            '-f', 'lavfi', '-i', `anullsrc=channel_layout=${channels}:sample_rate=${sampleRate}`,
             '-map', '0:v', '-map', '1:a',
             '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k',
             '-shortest',

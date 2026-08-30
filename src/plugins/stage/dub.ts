@@ -5,6 +5,7 @@ import { mapPool } from '../../lib/pool.js'
 import { describeError } from '../../kernel/errors.js'
 import { billedGenerate, summarize } from './shared.js'
 import { narrationPlacement, resolveCasting, spokenLine, validateVoiceCasting } from '../../lib/voice.js'
+import { autoCastVoices } from '../../lib/autocast.js'
 import type { StagePort } from '../../kernel/ports.js'
 import type { AssetRef, Shot } from '../../kernel/types.js'
 
@@ -32,6 +33,10 @@ import type { AssetRef, Shot } from '../../kernel/types.js'
  * Runs after `videos` and before `export`, which prefers `voicedClip`.
  *
  * Options:
+ *   autoCastVoices  cast any speaking character the config left out, from
+ *                   the 人设 (age and sex are stated in `appearance`).
+ *                   Default true — without it a forgotten `voices` map dubs
+ *                   the whole episode in the adapter's single default voice.
  *   voices          { "陈瑜之": "male-qn-jingying", … } — overrides the
  *                   voiceId designed into each character (character.voice)
  *   narratorVoice   voice id for narration lines — overrides project.narrator
@@ -87,8 +92,38 @@ export default definePlugin<StagePort>({
         voices: asRecord(ctx.options['voices']),
         narratorVoice: asString(ctx.options['narratorVoice']),
       })
-      const voices: Record<string, unknown> = { ...casting0.voices }
       const narratorVoice = casting0.narratorVoice
+
+      // Anyone the config forgot is cast from the 人设 rather than left on the
+      // adapter default. A missing `voices` map used to be a warning, and four
+      // episodes shipped in a single timbre before anyone heard it.
+      const autoCast = ctx.options['autoCastVoices'] !== false
+      const cast = autoCast
+        ? autoCastVoices(project.characters, project.shots, casting0.voices, narratorVoice)
+        : {
+            voices: casting0.voices,
+            assigned: {},
+            unresolved: [] as readonly string[],
+            guessed: [] as readonly string[],
+          }
+      const voices: Record<string, unknown> = { ...cast.voices }
+
+      const assignedNames = Object.keys(cast.assigned)
+      if (assignedNames.length > 0) {
+        log.info(
+          `dub: 自动配音色 ${assignedNames.length} 位 — ${assignedNames
+            .map((n) => `${n}=${cast.assigned[n]}`)
+            .join(', ')}`,
+        )
+      }
+      for (const name of cast.guessed) {
+        log.warn(
+          `dub: "${name}" 的人设没有年龄或性别信息，音色是猜的 — 请在 characterVisuals 里补上，或在 voices 里直接指定`,
+        )
+      }
+      for (const name of cast.unresolved) {
+        log.warn(`dub: 音色池已用尽，"${name}" 仍未配到独立音色`)
+      }
       const limit = Math.min(2, ports.speech.caps.maxConcurrency)
 
       // Casting rules are hard constraints, checked before anything is spent:
