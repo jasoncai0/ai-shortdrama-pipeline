@@ -160,6 +160,35 @@ export class LibtvClient {
     return node.nodeKey
   }
 
+  /**
+   * The CDN url a canvas node holds, or undefined when it has none yet.
+   *
+   * Compliance filing addresses assets by url, while the rest of the pipeline
+   * addresses them by node — this is the bridge, and a node whose task has not
+   * finished simply has no url to file.
+   */
+  async nodeUrl(ref: { readonly meta: Readonly<Record<string, unknown>> }): Promise<string | undefined> {
+    const name =
+      typeof ref.meta['libtvNodeName'] === 'string'
+        ? (ref.meta['libtvNodeName'] as string)
+        : typeof ref.meta['libtvNodeKey'] === 'string'
+          ? (ref.meta['libtvNodeKey'] as string)
+          : undefined
+    if (!name) return undefined
+
+    const result = await run(this.opts.bin, ['node', name, '-p', this.opts.projectUuid], {
+      cwd: this.opts.cwd,
+      timeoutMs: 60_000,
+    })
+    if (result.code !== 0) return undefined
+    try {
+      const node = parseJsonStdout<LibtvNode>(result.stdout, 'libtv node')
+      return node.data?.url?.[0]
+    } catch {
+      return undefined
+    }
+  }
+
   async deleteNode(name: string): Promise<void> {
     await run(this.opts.bin, ['node', 'delete', name, '-p', this.opts.projectUuid], {
       cwd: this.opts.cwd,

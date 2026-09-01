@@ -66,6 +66,7 @@ export const builtins: BuiltinTable = {
   'stage/images': () => import('./stage/images.js'),
   'stage/videos': () => import('./stage/videos.js'),
   'stage/dub': () => import('./stage/dub.js'),
+  'stage/voice-first': () => import('./stage/voice-first.js'),
   'stage/gate': () => import('./stage/gate.js'),
   'stage/export': () => import('./stage/export.js'),
   'stage/music': () => import('./stage/music.js'),

@@ -125,6 +125,15 @@ export interface VideoRequest {
    * between shots; adapters that cannot express both should prefer these.
    */
   readonly identityRefs?: readonly AssetRef[]
+  /**
+   * Speech this shot performs, handed to the model so it generates the mouth
+   * that says it. Without this the model invents mouth movement and any voice
+   * mixed on afterwards can never match it — which is what "音画不同步" was.
+   *
+   * The model re-performs the audio rather than passing it through, so a shot
+   * generated this way owns its soundtrack: do not dub over it.
+   */
+  readonly voiceTrack?: AssetRef
   readonly seconds?: number
   readonly ratio?: string
   readonly params?: Readonly<Record<string, unknown>>

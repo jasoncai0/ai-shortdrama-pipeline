@@ -48,7 +48,8 @@ import type { AssetRef, Shot } from '../../kernel/types.js'
  *                   dubbed or not. Default true: that track performs the same
  *                   line we are dubbing, so it is a second voice under the
  *                   scene — and the only voice on shots with no dialogue.
- *   padToVoice      hold the last frame when a line outruns the shot (default false)
+ *   padToVoice      hold the last frame when a line outruns the shot.
+ *                   Default true — the alternative is cutting the line off.
  *   includeNarration speak `shot.narration` too (default true)
  *   narrationOpeningShots  how many head shots may carry narration (default 1)
  *   narrationClosingShots  how many tail shots may carry narration (default 1)
@@ -83,7 +84,12 @@ export default definePlugin<StagePort>({
       const speed = numberOption(ctx.options['speed'], 1)
       const voiceGainDb = numberOption(ctx.options['voiceGainDb'], 0)
       const bedGainDb = numberOption(ctx.options['bedGainDb'], -12)
-      const padToVoice = ctx.options['padToVoice'] === true
+      // Default ON. Cutting a line at the end of its shot loses script — a
+      // speech stops mid-sentence and the next shot starts someone else's
+      // line — while a held frame is a visible compromise the editor can see
+      // and fix. With `voice-first` in the pipeline this almost never fires:
+      // the shot was already cut to the line.
+      const padToVoice = ctx.options['padToVoice'] !== false
       const includeNarration = ctx.options['includeNarration'] !== false
       const splitOnFailure = ctx.options['splitOnFailure'] !== false
       // The voice designed into each character's 人设 is the default casting;
@@ -182,7 +188,18 @@ export default definePlugin<StagePort>({
       const muteSourceAudio = ctx.options['muteSourceAudio'] !== false
       const bedGain = muteSourceAudio ? -120 : bedGainDb
 
+      const lipSyncedCount = project.shots.filter((s) => s.lipSynced).length
+      if (lipSyncedCount > 0) {
+        log.info(
+          `dub: ${lipSyncedCount} 个镜头由语音驱动生成，自带同步音轨 — 跳过，不重新配音`,
+        )
+      }
+
       const pending = project.shots
+        // A clip the model performed from this shot's speech already carries a
+        // soundtrack that matches its mouth. Dubbing would swap a synchronised
+        // take for an unsynchronised one — the exact fault this route fixes.
+        .filter((shot) => !shot.lipSynced)
         .filter((shot) => !shot.voicedClip && shot.clip)
         .filter((shot) => lines.has(shot.id) || muteSourceAudio)
         .slice(0, ctx.limitShots ?? undefined)

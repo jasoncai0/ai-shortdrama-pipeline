@@ -184,6 +184,12 @@ export interface Shot {
   readonly voice?: AssetRef
   /** `clip` with `voice` mixed in. `export` prefers this when present. */
   readonly voicedClip?: AssetRef
+  /**
+   * The clip was generated from this shot's speech, so its own audio already
+   * matches the mouth. Dubbing would replace a synchronised take with an
+   * unsynchronised one.
+   */
+  readonly lipSynced?: boolean
   readonly status: ShotStatus
   readonly failure?: string
 }

@@ -158,7 +158,7 @@ describe('dub stage', () => {
     expect(h.synthesized).toEqual([{ text: '你看见了什么', voice: 'male-qn-jingying' }])
   })
 
-  test('an uncast character still gets voiced, and the run says so', async () => {
+  test('an unlisted character is auto-cast, and the guess is announced', async () => {
     const warn = vi.fn()
     const stage = dubStage.create({}, { ...deps(), log: { ...log, warn } }) as StagePort
     const h = harness()
@@ -175,7 +175,9 @@ describe('dub stage', () => {
       emit: () => {},
     })
 
-    expect(h.synthesized[0]?.voice).toBeUndefined()
+    // Auto-casting gives an unlisted character a timbre rather than leaving
+    // the line mute, but the guess is still announced so it can be overridden.
+    expect(h.synthesized[0]?.voice).toBeTruthy()
     expect(warn.mock.calls.flat().join(' ')).toMatch(/陈宗之/)
   })
 
@@ -311,5 +313,36 @@ describe('renderedClip — the export/subtitles seam', () => {
 
   test('a shot with neither renders as nothing', () => {
     expect(renderedClip(shot({ clip: undefined }))).toBeUndefined()
+  })
+})
+
+describe('lip-synced clips are left alone', () => {
+  test('a shot the model performed from its own speech is never re-dubbed', async () => {
+    const h = harness()
+    await run(
+      project([
+        { ...shot({ dialogue: '什么时候寒门庶族?', characterIds: ['ch1'] }), lipSynced: true },
+      ], [{ id: 'ch1', name: '褚文彬', appearance: 'x' }]),
+      {},
+      h,
+    )
+
+    // Its audio already matches its mouth; dubbing would swap a synchronised
+    // take for an unsynchronised one — the exact fault lip sync exists to fix.
+    expect(h.synthesized).toHaveLength(0)
+  })
+
+  test('an ordinary shot beside it is still dubbed', async () => {
+    const h = harness()
+    await run(
+      project([
+        { ...shot({ id: 'a', dialogue: '甲。', characterIds: ['ch1'] }), lipSynced: true },
+        shot({ id: 'b', dialogue: '乙。', characterIds: ['ch1'] }),
+      ], [{ id: 'ch1', name: '褚文彬', appearance: 'x' }]),
+      {},
+      h,
+    )
+
+    expect(h.synthesized).toHaveLength(1)
   })
 })

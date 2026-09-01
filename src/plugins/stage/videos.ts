@@ -1,4 +1,5 @@
 import { idempotencyKey } from '../../kernel/idem.js'
+import { AUDIO_MAX_SECONDS, AUDIO_MIN_SECONDS, audioIsRegisterable } from '../../lib/compliance.js'
 import { definePlugin } from '../../kernel/registry.js'
 import { findCharacter, findLook } from '../../kernel/types.js'
 import { mapPool } from '../../lib/pool.js'
@@ -38,6 +39,9 @@ export default definePlugin<StagePort>({
       }
       log.info(`videos: generating ${pending.length} clips (concurrency ${limit})`)
 
+      // Lip sync costs a compliance filing per shot and cannot be undone once
+      // the clip exists, so it is opt-out rather than silent.
+      const lipSyncEnabled = ctx.options['lipSync'] !== false
       let completed = 0
       const results = await mapPool(pending, limit, async (shot) => {
         const prompt = shot.videoPrompt ?? shot.plotDescription
@@ -71,6 +75,21 @@ export default definePlugin<StagePort>({
           return look?.image ? [character.refImage, look.image] : [character.refImage]
         })
 
+        // Speech drives the mouth when the provider can take it and the line
+        // fits the register's duration window. Outside it the shot keeps the
+        // old route: generated picture, dubbed afterwards.
+        const speech = lipSyncEnabled && shot.voice && ports.video.caps.audio ? shot.voice : undefined
+        const speechSeconds = speech ? await ports.post.probeDuration(speech, ports.assetStore) : undefined
+        const voiceTrack =
+          speech && speechSeconds !== undefined && audioIsRegisterable(speechSeconds)
+            ? speech
+            : undefined
+        if (speech && !voiceTrack && speechSeconds !== undefined) {
+          log.info(
+            `videos: ${shot.id} 语音 ${speechSeconds.toFixed(1)}s 不在合规窗口 ${AUDIO_MIN_SECONDS}–${AUDIO_MAX_SECONDS}s，改用后期配音`,
+          )
+        }
+
         const key = idempotencyKey('videos', shot.id, {
           prompt,
           mode,
@@ -78,6 +97,7 @@ export default definePlugin<StagePort>({
           ratio: project.ratio,
           params: providerParams,
           still: firstFrame?.id,
+          voice: voiceTrack?.id,
           identityRefs: identityRefs.map((r) => r.id),
         })
 
@@ -95,6 +115,7 @@ export default definePlugin<StagePort>({
               negativePrompt: shot.negativePrompt,
               firstFrame,
               identityRefs,
+              ...(voiceTrack ? { voiceTrack } : {}),
               seconds: shot.durationSeconds,
               ratio: project.ratio,
               params: providerParams,
@@ -104,17 +125,23 @@ export default definePlugin<StagePort>({
         })
         completed += 1
         ctx.emit('progress', { item: completed, total: pending.length, note: shot.id })
-        return { shotId: shot.id, clip }
+        return { shotId: shot.id, clip, lipSynced: Boolean(voiceTrack) }
       })
 
       const clips = new Map<string, AssetRef>()
+      // Clips the model performed from our speech: their audio already matches
+      // the mouth, so the dub stage must leave them alone.
+      const lipSynced = new Set<string>()
       const failed = new Map<string, string>()
       const failures: { subject: string; error: unknown }[] = []
 
       results.forEach((settled, index) => {
         const shot = pending[index]
         if (!shot) return
-        if (settled.ok) clips.set(settled.value.shotId, settled.value.clip)
+        if (settled.ok) {
+          clips.set(settled.value.shotId, settled.value.clip)
+          if (settled.value.lipSynced) lipSynced.add(settled.value.shotId)
+        }
         else {
           failed.set(shot.id, String(settled.error))
           failures.push({ subject: shot.id, error: settled.error })
@@ -122,7 +149,10 @@ export default definePlugin<StagePort>({
       })
 
       summarize(log, 'videos', pending.length, failures)
-      ctx.emit('videos', { ok: clips.size, failed: failed.size })
+      if (lipSynced.size > 0) {
+        log.info(`videos: ${lipSynced.size}/${clips.size} 个镜头由语音驱动生成，口型与台词同步`)
+      }
+      ctx.emit('videos', { ok: clips.size, failed: failed.size, lipSynced: lipSynced.size })
 
       return {
         kind: 'ok',
@@ -130,7 +160,14 @@ export default definePlugin<StagePort>({
           ...project,
           shots: project.shots.map((shot) => {
             const clip = clips.get(shot.id)
-            if (clip) return { ...shot, clip, status: 'clipped' as const, failure: undefined }
+            if (clip)
+              return {
+                ...shot,
+                clip,
+                ...(lipSynced.has(shot.id) ? { lipSynced: true } : {}),
+                status: 'clipped' as const,
+                failure: undefined,
+              }
             const failure = failed.get(shot.id)
             return failure ? { ...shot, status: 'failed' as const, failure } : shot
           }),
