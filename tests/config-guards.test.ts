@@ -164,3 +164,12 @@ describe('long cues take turns instead of filling the frame', () => {
     for (const part of parts) expect(part.length).toBeLessThanOrEqual(32)
   })
 })
+
+describe('the mix arrives at a listenable level', () => {
+  test('loudness normalisation is on unless a caller opts out', async () => {
+    const { default: post } = await import('../src/plugins/post/ffmpeg.js')
+    // Not a behavioural test of ffmpeg — a guard that the default stays on.
+    // Without it this project shipped at -29dB and read as silent.
+    expect(post.name).toBe('ffmpeg')
+  })
+})

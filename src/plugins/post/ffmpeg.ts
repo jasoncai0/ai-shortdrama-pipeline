@@ -245,13 +245,19 @@ export default definePlugin<PostPort>({
           `volume=${opts.musicGainDb}dB`,
         ].join(',')
 
+        // Mixing alone leaves the cut wherever the pieces happened to sit —
+        // this one landed at -29dB, quiet enough to read as broken. Normalising
+        // to the streaming standard (-16 LUFS, -1.5dBTP) makes every episode
+        // arrive at the same, audible level regardless of how its shots were
+        // voiced.
+        const loudness = opts.normaliseLoudness === false ? '' : ',loudnorm=I=-16:TP=-1.5:LRA=11'
         const filter = hasAudio
           ? opts.duckUnderDialogue
             ? // Sidechain compression: the picture's own audio pushes the score
               // down while anyone is speaking, and lets it back up in the gaps.
-              `[1:a]${musicChain}[m];[m][0:a]sidechaincompress=threshold=0.03:ratio=12:attack=15:release=500[duck];[duck][0:a]amix=inputs=2:duration=first:dropout_transition=0[a]`
-            : `[1:a]${musicChain}[m];[m][0:a]amix=inputs=2:duration=first:dropout_transition=0[a]`
-          : `[1:a]${musicChain}[a]`
+              `[1:a]${musicChain}[m];[m][0:a]sidechaincompress=threshold=0.03:ratio=12:attack=15:release=500[duck];[duck][0:a]amix=inputs=2:duration=first:dropout_transition=0${loudness}[a]`
+            : `[1:a]${musicChain}[m];[m][0:a]amix=inputs=2:duration=first:dropout_transition=0${loudness}[a]`
+          : `[1:a]${musicChain}${loudness}[a]`
 
         if (!hasAudio) {
           deps.log.debug('post/ffmpeg: picture has no audio track; score becomes the only audio')

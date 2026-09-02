@@ -328,6 +328,12 @@ export interface MixOptions {
   readonly loop: boolean
   /** Pull the music down while dialogue plays. */
   readonly duckUnderDialogue: boolean
+  /**
+   * Bring the finished mix to the streaming standard (-16 LUFS). Without it
+   * the cut sits wherever its shots happened to be voiced — this project
+   * landed at -29dB, quiet enough that it read as having no sound at all.
+   */
+  readonly normaliseLoudness?: boolean
 }
 
 /** One timed overlay: a rendered card and the window it is visible for. */
