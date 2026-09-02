@@ -30,7 +30,9 @@ export default definePlugin<StagePort>({
 
       // A voiced clip supersedes the silent one; the clean version stays in
       // the store under its own key, so this is a preference, not a loss.
-      const voiced = ordered.filter((shot) => shot.voicedClip).length
+      // Both routes carry a real voice: a dub we mixed, or a take the model
+      // performed from our speech. Only shots with neither are silenced.
+      const voiced = ordered.filter((shot) => shot.voicedClip || shot.lipSynced).length
       if (voiced > 0) {
         log.info(`export: ${voiced}/${ordered.length} shots use their dubbed audio`)
       }
@@ -53,7 +55,7 @@ export default definePlugin<StagePort>({
       for (const shot of ordered) {
         const rendered = renderedClip(shot)
         if (!rendered) continue
-        if (silenceUnvoiced && mute && !shot.voicedClip) {
+        if (silenceUnvoiced && mute && !shot.voicedClip && !shot.lipSynced) {
           clips.push(await mute(rendered, ports.assetStore, project.id))
           muted += 1
           ctx.emit('progress', { note: `muting ${shot.id}` })

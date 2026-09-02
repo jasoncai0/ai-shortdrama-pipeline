@@ -384,3 +384,48 @@ describe('a silent shot keeps its ambience', () => {
     expect(h.synthesized).toHaveLength(1)
   })
 })
+
+describe('export keeps every voice it has', () => {
+  test('a lip-synced shot is not silenced for lacking a voicedClip', async () => {
+    const exportStage = (await import('../src/plugins/stage/export.js')).default
+    const muted: string[] = []
+    const concatted: string[][] = []
+    const stage = exportStage.create({}, deps()) as StagePort
+
+    await stage.run({
+      project: {
+        ...project([
+          { ...shot({ id: 'lip', clip: ref('clip-lip') }), lipSynced: true },
+          shot({ id: 'silent', clip: ref('clip-silent') }),
+        ]),
+      },
+      ports: {
+        assetStore: { put: async () => ref('out'), localPath: async () => '/tmp/x.mp4' },
+        post: {
+          name: 'fake',
+          muteAudio: async (clip: AssetRef) => {
+            muted.push(clip.id)
+            return ref(`muted-${clip.id}`)
+          },
+        },
+        export: {
+          name: 'fake',
+          concat: async (clips: readonly AssetRef[]) => {
+            concatted.push(clips.map((c) => c.id))
+            return ref('final')
+          },
+        },
+      } as never,
+      log,
+      options: {},
+      concurrency: {},
+      autoApprove: true,
+      emit: () => {},
+    } as never)
+
+    // Muting these threw away every voice in the film — 48 of 92 shots.
+    expect(muted).not.toContain('clip-lip')
+    expect(muted).toContain('clip-silent')
+    expect(concatted[0]).toContain('clip-lip')
+  })
+})
