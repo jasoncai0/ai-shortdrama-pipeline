@@ -139,3 +139,18 @@ describe('a lip-synced clip owns its soundtrack', () => {
     expect(renderedClip(lipSynced)).toEqual({ id: 'c' })
   })
 })
+
+describe('the generator has a tighter ceiling than the register', () => {
+  test('the register accepts 26s but a 15s model cannot drive from it', () => {
+    // Registering succeeds, then generation fails with "总时长均不可超过 15 秒"
+    // and the shot is lost. The lower of the two ceilings is the real one.
+    const registerOk = audioIsRegisterable(26.6)
+    const modelMax = 15
+    expect(registerOk).toBe(true)
+    expect(26.6 <= Math.min(AUDIO_MAX_SECONDS, modelMax)).toBe(false)
+  })
+
+  test('an ordinary line clears both', () => {
+    expect(audioIsRegisterable(4.47) && 4.47 <= Math.min(AUDIO_MAX_SECONDS, 15)).toBe(true)
+  })
+})

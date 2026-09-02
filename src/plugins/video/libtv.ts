@@ -43,8 +43,10 @@ export default definePlugin<VideoPort>({
     // Seedance refuses to animate media the account has not filed through the
     // compliance register. Credentials come from the environment, never the
     // config, so a session token is not committed alongside a project.
-    const complianceToken = process.env['LIBTV_TOKEN'] ?? asString(options['complianceToken'])
-    const complianceWebid = process.env['LIBTV_WEBID'] ?? asString(options['complianceWebid'])
+    const complianceToken =
+      process.env['DUANJU_COMPLIANCE_TOKEN'] ?? asString(options['complianceToken'])
+    const complianceWebid =
+      process.env['DUANJU_COMPLIANCE_WEBID'] ?? asString(options['complianceWebid'])
     const creds =
       complianceToken && complianceWebid
         ? { token: complianceToken, webid: complianceWebid, projectUuid }
@@ -60,7 +62,7 @@ export default definePlugin<VideoPort>({
     ): Promise<void> => {
       if (!creds) {
         deps.log.warn(
-          `libtv video: "${label}" needs compliance filing but LIBTV_TOKEN/LIBTV_WEBID are unset — the model will refuse it.`,
+          `libtv video: "${label}" needs compliance filing but DUANJU_COMPLIANCE_TOKEN/DUANJU_COMPLIANCE_WEBID are unset — the model will refuse it.`,
         )
         return
       }

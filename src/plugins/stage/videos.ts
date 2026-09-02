@@ -80,13 +80,17 @@ export default definePlugin<StagePort>({
         // old route: generated picture, dubbed afterwards.
         const speech = lipSyncEnabled && shot.voice && ports.video.caps.audio ? shot.voice : undefined
         const speechSeconds = speech ? await ports.post.probeDuration(speech, ports.assetStore) : undefined
+        const driveCeiling = Math.min(AUDIO_MAX_SECONDS, ports.video.caps.maxSeconds)
         const voiceTrack =
-          speech && speechSeconds !== undefined && audioIsRegisterable(speechSeconds)
+          speech &&
+          speechSeconds !== undefined &&
+          audioIsRegisterable(speechSeconds) &&
+          speechSeconds <= driveCeiling
             ? speech
             : undefined
         if (speech && !voiceTrack && speechSeconds !== undefined) {
           log.info(
-            `videos: ${shot.id} 语音 ${speechSeconds.toFixed(1)}s 不在合规窗口 ${AUDIO_MIN_SECONDS}–${AUDIO_MAX_SECONDS}s，改用后期配音`,
+            `videos: ${shot.id} 语音 ${speechSeconds.toFixed(1)}s 不在可驱动窗口 ${AUDIO_MIN_SECONDS}–${driveCeiling}s，改用后期配音`,
           )
         }
 
