@@ -188,6 +188,13 @@ export default definePlugin<StagePort>({
       const muteSourceAudio = ctx.options['muteSourceAudio'] !== false
       const bedGain = muteSourceAudio ? -120 : bedGainDb
 
+      // Muting is for shots we speak over: the model's invented voice would
+      // fight ours. A shot with no line has no such conflict, and stripping it
+      // leaves dead air — 44 of 92 shots came out at -91dB that way, which is
+      // why the film had no sound. Its ambience (wind, footsteps, room tone)
+      // is the only thing under the score there, so it stays.
+      const stripSilentShots = ctx.options['stripSilentShots'] === true
+
       const lipSyncedCount = project.shots.filter((s) => s.lipSynced).length
       if (lipSyncedCount > 0) {
         log.info(
@@ -201,7 +208,7 @@ export default definePlugin<StagePort>({
         // take for an unsynchronised one — the exact fault this route fixes.
         .filter((shot) => !shot.lipSynced)
         .filter((shot) => !shot.voicedClip && shot.clip)
-        .filter((shot) => lines.has(shot.id) || muteSourceAudio)
+        .filter((shot) => lines.has(shot.id) || (muteSourceAudio && stripSilentShots))
         .slice(0, ctx.limitShots ?? undefined)
 
       if (pending.length === 0) {
@@ -213,8 +220,8 @@ export default definePlugin<StagePort>({
       const results = await mapPool(pending, limit, async (shot) => {
         const resolved = lines.get(shot.id)
 
-        // Nothing to say here: the shot still needs the model's invented audio
-        // taken off, or it plays over the score with a voice nobody cast.
+        // Only reached when stripSilentShots is on: the shot says nothing, so
+        // the choice is between the model's ambience and silence.
         if (!resolved) {
           const muted = ports.post.stripAudio
             ? await ports.post.stripAudio(shot.clip as AssetRef, ports.assetStore, project.id)

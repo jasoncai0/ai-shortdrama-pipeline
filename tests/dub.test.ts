@@ -63,12 +63,14 @@ const project = (shots: readonly Shot[], characters: Project['characters'] = [])
 interface Harness {
   readonly ports: Ports
   readonly synthesized: { text: string; voice?: string }[]
+  readonly stripped: string[]
   readonly mixed: string[]
 }
 
 const harness = (overrides: { mixVoice?: unknown } = {}): Harness => {
   const synthesized: { text: string; voice?: string }[] = []
   const mixed: string[] = []
+  const stripped: string[] = []
 
   const speech: SpeechPort = {
     name: 'fake',
@@ -82,6 +84,10 @@ const harness = (overrides: { mixVoice?: unknown } = {}): Harness => {
   const post = {
     name: 'fake',
     mixMusic: async () => ref('unused'),
+    stripAudio: async (clip: AssetRef) => {
+      stripped.push(clip.id)
+      return ref(`muted-${clip.id}`)
+    },
     buildSubtitles: async () => ref('unused'),
     burnSubtitles: async () => ref('unused'),
     ...('mixVoice' in overrides
@@ -117,7 +123,7 @@ const harness = (overrides: { mixVoice?: unknown } = {}): Harness => {
     },
   } as unknown as Ports
 
-  return { ports, synthesized, mixed }
+  return { ports, synthesized, mixed, stripped }
 }
 
 const run = async (
@@ -339,6 +345,38 @@ describe('lip-synced clips are left alone', () => {
         { ...shot({ id: 'a', dialogue: '甲。', characterIds: ['ch1'] }), lipSynced: true },
         shot({ id: 'b', dialogue: '乙。', characterIds: ['ch1'] }),
       ], [{ id: 'ch1', name: '褚文彬', appearance: 'x' }]),
+      {},
+      h,
+    )
+
+    expect(h.synthesized).toHaveLength(1)
+  })
+})
+
+describe('a silent shot keeps its ambience', () => {
+  test('a shot with no line is left alone, not stripped to dead air', async () => {
+    const h = harness()
+    await run(project([shot({ id: 'empty' })]), {}, h)
+
+    // Stripping these produced -91dB clips; 44 of 92 shots like this made the
+    // whole film inaudible even with a score mixed over it.
+    expect(h.stripped).toEqual([])
+    expect(h.synthesized).toEqual([])
+  })
+
+  test('stripSilentShots restores the old behaviour for callers that want it', async () => {
+    const h = harness()
+    await run(project([shot({ id: 'empty' })]), { stripSilentShots: true }, h)
+
+    expect(h.stripped.length + h.synthesized.length).toBeGreaterThan(0)
+  })
+
+  test('a shot that does speak is still muted under its dub', async () => {
+    const h = harness()
+    await run(
+      project([shot({ dialogue: '台词。', characterIds: ['ch1'] })], [
+        { id: 'ch1', name: '陈瑜之', appearance: 'x' },
+      ]),
       {},
       h,
     )
