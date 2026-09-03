@@ -406,6 +406,22 @@ export interface PostPort extends Plugin {
   muteAudio?(clip: AssetRef, store: AssetStorePort, projectId: string): Promise<AssetRef>
 
   /**
+   * Re-encodes the picture through a filter chain, keeping the audio as it is.
+   *
+   * The generic seam a style grade rides on: the adapter knows how to run a
+   * filter, the style pack knows which one. Keeping it generic means a LUT
+   * pack, a crop-for-reframe pass or a debug overlay all reuse this rather
+   * than each growing its own method.
+   */
+  applyFilter?(
+    video: AssetRef,
+    filter: string,
+    store: AssetStorePort,
+    projectId: string,
+    label?: string,
+  ): Promise<AssetRef>
+
+  /**
    * Measured runtime of a rendered asset. Everything that places something on
    * a timeline needs this, and they all have to agree — a model asked for 4s
    * returns 4.096s, and two callers measuring differently drift apart.

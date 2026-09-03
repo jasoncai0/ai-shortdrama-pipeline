@@ -1,0 +1,31 @@
+{
+  "id": "shaw-brothers-wuxia",
+  "label": "邵氏武侠 · Shaw Brothers studio wuxia (1967–1983)",
+  "source": "Shaw Brothers Studio retrospectives; Chor Yuen / Chang Cheh era surveys. The house look is soundstage-built: elaborate interior sets, gel-lit colour, a permanent artificial dusk.",
+  "look": {
+    "image": "1970s Shaw Brothers studio wuxia still, shot entirely on a soundstage: painted backdrop horizon, permanent amber magic-hour glow, coloured gel lighting pooling in the corners of the frame, low-lying dry-ice mist across the floor, lacquered timber and silk banners, saturated primary costume colours against deep shadow, proscenium staging with the action centred and parallel to the camera, anamorphic-era Shawscope framing, rich Eastmancolor film stock with visible grain",
+    "video": "studio-bound wuxia staging: the camera holds a clean wide proscenium and lets the choreography cross it; wire-assisted leaps land inside the frame; mist drifts, silk and banners move in the air",
+    "negatives": "handheld shake, documentary realism, modern clothing, contemporary architecture, desaturated grey grading, natural overcast daylight, drone footage, lens flare from LED sources, plastic textures"
+  },
+  "camera": {
+    "preferredMoves": ["static", "slow dolly-in", "pan left", "pan right", "crane up", "tilt down"],
+    "clause": "one dominant move only, executed smoothly on a dolly or crane — never handheld"
+  },
+  "pacing": {
+    "shotSeconds": 5,
+    "note": "Shaw shots breathe: the set is the spectacle, so the frame is held long enough to read it."
+  },
+  "grade": {
+    "saturation": 1.35,
+    "contrast": 1.12,
+    "gamma": 0.94,
+    "colorBalance": {
+      "shadowsBlue": 0.06,
+      "midtonesRed": 0.1,
+      "highlightsRed": 0.12
+    },
+    "grain": 6,
+    "vignette": true
+  },
+  "notes": "Warm amber highlights over cool shadows is the signature: an artificial sunset that never sets. Saturation is pushed hard — Shaw colour was a selling point against black-and-white wuxia."
+}

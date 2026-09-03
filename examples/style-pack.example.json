@@ -1,0 +1,70 @@
+{
+  "//": "Stylised video via pluggable style packs. A pack is JSON under prompts/styles/ and touches three layers: prompt look (style middleware), camera habits (camera-check), and the pixels themselves (grade stage). Swapping schools is one pack id — no stage rewrite, no re-prompt.",
+
+  "shippedPacks": {
+    "shaw-brothers-wuxia": "邵氏武侠 — soundstage colour, gel lighting, permanent amber dusk, held proscenium frames. Saturation pushed, warm highlights over cool shadows, vignette + grain.",
+    "king-hu-wuxia": "胡金铨武侠 — real locations, bamboo and haze, ink-wash palette, Peking-opera choreography cut in 'glimpses'. Desaturated, contrast up, shorter shots.",
+    "hk-neon-noir": "港式霓虹夜色 — neon as key light, rain-slick streets, crushed blacks. Included to prove the seam is genre-neutral.",
+    "none": "The explicit opt-out. No anchors, no grade — the grade stage stream-copies instead of re-encoding."
+  },
+
+  "middleware": [
+    { "impl": "camera-grammar" },
+    {
+      "//": "AFTER camera-grammar: the camera rewrite should see the story's own wording, and the style clause lands last where the model reads it as a frame-wide constraint.",
+      "impl": "style",
+      "options": { "pack": "shaw-brothers-wuxia", "dir": "./prompts/styles", "image": true, "video": true }
+    }
+  ],
+
+  "pipeline": [
+    "plan",
+    "assets",
+    "shots",
+    {
+      "//": "The pack's preferredMoves narrow the camera vocabulary; off-school moves are reported by name.",
+      "id": "camera-check",
+      "use": "camera-check",
+      "options": { "stylePack": "shaw-brothers-wuxia" }
+    },
+    "prompts",
+    "images",
+    "videos",
+    "export",
+    {
+      "//": "One re-encode for the whole cut, before music and subtitles. Records project.style so a delivery can say what look it carries.",
+      "id": "grade",
+      "use": "grade",
+      "options": { "pack": "shaw-brothers-wuxia" }
+    }
+  ],
+
+  "authoringANewPack": {
+    "//": "Drop a JSON in prompts/styles/. Unknown fields are rejected, so a typo fails loudly instead of silently doing nothing.",
+    "id": "my-school",
+    "label": "示例流派",
+    "source": "where the look was studied from — packs make claims about real films",
+    "look": {
+      "image": "prepended to image prompts — the anchor the whole frame obeys",
+      "video": "appended to video prompts — how this school moves",
+      "negatives": "joined onto the shot's own negatives, never replacing them"
+    },
+    "camera": { "preferredMoves": ["static", "slow dolly-in"], "clause": "one dominant move only" },
+    "pacing": { "shotSeconds": 5, "note": "how long this school holds a frame" },
+    "grade": {
+      "aspect": "3:4",
+      "saturation": 1.2,
+      "contrast": 1.1,
+      "gamma": 0.95,
+      "colorBalance": { "shadowsBlue": 0.06, "highlightsRed": 0.1 },
+      "grain": 6,
+      "vignette": true,
+      "extraFilters": ["hqdn3d=1:1:6:6"]
+    }
+  },
+
+  "offlineVerification": {
+    "//": "The video stub renders a flat colour per shot, which shows nothing about a grade. Set source=testsrc for a patterned frame and the grade becomes legible without paying a provider.",
+    "ports": { "video": { "impl": "stub", "options": { "source": "testsrc" } } }
+  }
+}

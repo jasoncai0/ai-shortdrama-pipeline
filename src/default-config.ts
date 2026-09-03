@@ -66,6 +66,8 @@ export const DEFAULT_CONFIG = {
     'images',
     'videos',
     'export',
+    // A no-op until a style pack is named; see prompts/styles/.
+    { id: 'grade', use: 'grade', options: { pack: 'none' } },
     'music',
     // Subtitles are burned in and irreversible, so the picture gets signed off
     // first. The subtitles stage refuses to run until this gate is done.

@@ -46,6 +46,7 @@ export const builtins: BuiltinTable = {
   'promptStrategy/skill-anchored': () => import('./promptStrategy/skill-anchored.js'),
 
   'middleware/prompt-tune': () => import('./middleware/prompt-tune.js'),
+  'middleware/style': () => import('./middleware/style.js'),
   'middleware/tuning-log': () => import('./middleware/tuning-log.js'),
   'middleware/retry': () => import('./middleware/retry.js'),
   'middleware/camera-grammar': () => import('./middleware/camera-grammar.js'),
@@ -61,6 +62,7 @@ export const builtins: BuiltinTable = {
   'stage/cover-typeset': () => import('./stage/cover-typeset.js'),
   'stage/shots': () => import('./stage/shots.js'),
   'stage/camera-check': () => import('./stage/camera-check.js'),
+  'stage/grade': () => import('./stage/grade.js'),
   'stage/voice-check': () => import('./stage/voice-check.js'),
   'stage/prompts': () => import('./stage/prompts.js'),
   'stage/images': () => import('./stage/images.js'),

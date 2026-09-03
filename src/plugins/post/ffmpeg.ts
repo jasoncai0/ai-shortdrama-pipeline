@@ -383,6 +383,39 @@ export default definePlugin<PostPort>({
         })
       },
 
+      applyFilter: async (video, filter, store, projectId, label) => {
+        const src = await store.localPath(video)
+        const dir = await mkdtemp(join(tmpdir(), 'duanju-filter-'))
+        const out = join(dir, 'filtered.mp4')
+
+        // Audio is stream-copied: a colour grade must not re-encode the
+        // soundtrack, and a second AAC pass over an already-mixed score is
+        // audible loss for nothing. yuv420p is forced because some filters
+        // (drawbox, noise) will happily hand back a pixel format that phones
+        // refuse to play.
+        await runOrThrow(
+          bin,
+          [
+            '-y', '-hide_banner', '-loglevel', 'error',
+            '-i', src,
+            '-vf', filter,
+            '-c:v', 'libx264', '-preset', 'medium', '-crf', '18',
+            '-pix_fmt', 'yuv420p',
+            '-c:a', 'copy',
+            out,
+          ],
+          { timeoutMs: 0, log: deps.log },
+        )
+
+        return store.put(new Uint8Array(await readFile(out)), {
+          kind: 'clip',
+          mime: 'video/mp4',
+          projectId,
+          label: label ?? `${video.meta?.label ?? video.id}-filtered`,
+          extra: { filteredFrom: video.id, filter },
+        })
+      },
+
       burnSubtitles: async (video, srt, style, store, projectId) => {
         const videoPath = await store.localPath(video)
         const srtPath = await store.localPath(srt)

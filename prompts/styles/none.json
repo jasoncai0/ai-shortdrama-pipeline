@@ -1,0 +1,8 @@
+{
+  "id": "none",
+  "label": "无风格 · pass-through",
+  "source": "Not a style. The explicit opt-out, so a config can name the plugin and still ship an ungraded picture.",
+  "look": {},
+  "camera": { "preferredMoves": [] },
+  "notes": "No look anchors, no grade. buildGradeFilter returns undefined for this pack, so the grade stage stream-copies instead of re-encoding."
+}

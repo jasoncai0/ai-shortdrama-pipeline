@@ -240,6 +240,15 @@ export interface Project {
   readonly plan?: ProjectPlan
   /** The narrator's voice persona — a designed role, distinct from every character. */
   readonly narrator?: VoicePersona
+  /**
+   * The style pack burnt into `finalCut`, recorded so a delivery can say what
+   * look it is and a regrade can tell whether one was already applied.
+   */
+  readonly style?: {
+    readonly pack: string
+    readonly label: string
+    readonly filter: string
+  }
   readonly episodes: readonly Episode[]
   readonly characters: readonly Character[]
   readonly scenes: readonly Scene[]

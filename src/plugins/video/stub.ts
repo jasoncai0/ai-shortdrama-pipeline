@@ -13,12 +13,24 @@ import type { VideoPort } from '../../kernel/ports.js'
  * included) instead of being mocked away.
  *
  * Requires ffmpeg — the same dependency the export stage already needs.
+ *
+ * Options:
+ *   bin      ffmpeg binary, default "ffmpeg"
+ *   source   "color" (default) — one flat colour per shot, derived from the
+ *            idempotency key, so a reel is visibly cut from distinct shots;
+ *            "testsrc" — a structured pattern with chroma, luma steps and
+ *            motion, for judging a colour grade offline.
  */
 export default definePlugin<VideoPort>({
   port: 'video',
   name: 'stub',
   create: (options, deps) => {
     const bin = typeof options['bin'] === 'string' ? options['bin'] : 'ffmpeg'
+    // A flat colour card proves concat behaviour but shows nothing about a
+    // colour grade — every pixel reacts identically. `testsrc` gives the same
+    // offline determinism over a frame with real chroma, luma steps and
+    // motion, which is what a style pack has to be judged on.
+    const source = options['source'] === 'testsrc' ? 'testsrc' : 'color'
 
     return {
       name: 'stub',
@@ -45,7 +57,10 @@ export default definePlugin<VideoPort>({
           [
             '-y', '-hide_banner', '-loglevel', 'error',
             '-f', 'lavfi',
-            '-i', `color=c=${colour}:s=${w}x${h}:d=${seconds}:r=24`,
+            '-i',
+            source === 'testsrc'
+              ? `testsrc2=s=${w}x${h}:d=${seconds}:r=24`
+              : `color=c=${colour}:s=${w}x${h}:d=${seconds}:r=24`,
             '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '30',
             '-pix_fmt', 'yuv420p',
             out,

@@ -1,0 +1,28 @@
+{
+  "id": "hk-neon-noir",
+  "label": "港式霓虹夜色 · Hong Kong neon noir",
+  "source": "1990s Hong Kong urban night photography: practical neon as the key light, tungsten interiors, rain-slick streets.",
+  "look": {
+    "image": "Hong Kong night street, neon signage as the only key light, magenta and cyan practicals reflected in wet asphalt, tungsten warmth spilling from a doorway, dense signage and cables overhead, shallow focus, halation around bright sources, 35mm push-processed grain",
+    "video": "neon reflections slide across the frame as the subject moves; rain and steam catch the light; the background stays a soft field of coloured bokeh",
+    "negatives": "daylight, rural landscape, period costume, clean sterile interiors, flat even lighting"
+  },
+  "camera": {
+    "preferredMoves": ["handheld follow", "slow dolly-in", "static", "tracking shot"],
+    "clause": "keep the neon sources moving through frame"
+  },
+  "pacing": { "shotSeconds": 4 },
+  "grade": {
+    "saturation": 1.3,
+    "contrast": 1.15,
+    "gamma": 0.9,
+    "colorBalance": {
+      "shadowsBlue": 0.18,
+      "midtonesBlue": 0.08,
+      "highlightsRed": 0.1
+    },
+    "grain": 8,
+    "vignette": true
+  },
+  "notes": "Cool shadows, warm highlights, crushed blacks. Included as a non-wuxia pack so the seam is proven to be genre-neutral."
+}

@@ -1,4 +1,5 @@
 import { definePlugin } from '../../kernel/registry.js'
+import { loadStylePack } from '../../lib/stylepack.js'
 import { judgeCamera, loadCameraGrammar, setupKey } from '../../lib/camera.js'
 import type { StagePort } from '../../kernel/ports.js'
 
@@ -37,6 +38,30 @@ export default definePlugin<StagePort>({
       const failOn = ctx.options['failOn'] === 'problems' ? 'problems' : 'never'
 
       const findings: string[] = []
+
+      // A style pack narrows the vocabulary further: every move stays legal
+      // grammar, but a school that never went handheld should be told when the
+      // breakdown puts it on a shoulder.
+      const packName = typeof ctx.options['stylePack'] === 'string' ? ctx.options['stylePack'] : undefined
+      const pack = packName
+        ? await loadStylePack(
+            process.cwd(),
+            typeof ctx.options['styleDir'] === 'string' ? ctx.options['styleDir'] : './prompts/styles',
+            packName,
+          )
+        : undefined
+      const preferred = pack?.camera.preferredMoves ?? []
+      if (preferred.length > 0) {
+        const allowed = new Set(preferred.map((m) => m.toLowerCase()))
+        const offenders = project.shots.filter(
+          (s) => s.cameraMove?.trim() && !allowed.has(s.cameraMove.trim().toLowerCase()),
+        )
+        for (const shot of offenders) {
+          findings.push(
+            `${shot.id}: "${shot.cameraMove}" 不在「${pack?.label}」的运镜习惯内（${preferred.join(' / ')}）`,
+          )
+        }
+      }
 
       for (const shot of project.shots) {
         for (const problem of judgeCamera(shot.cameraMove, grammar).problems) {

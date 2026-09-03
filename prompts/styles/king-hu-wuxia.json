@@ -1,0 +1,30 @@
+{
+  "id": "king-hu-wuxia",
+  "label": "胡金铨武侠 · King Hu (Come Drink with Me → A Touch of Zen)",
+  "source": "Harvard Film Archive and BFI programme notes; David Bordwell's account of 'the glimpse' — bursts of six-frame shots that register as movement rather than as images. Peking-opera choreography, real locations, bamboo and mist.",
+  "look": {
+    "image": "King Hu wuxia frame: real mountain location, tall bamboo grove with shafts of hard sunlight cutting through, natural haze and dust in the air, muted earth and ink-wash palette with one accent of costume colour, Ming-dynasty robes and scholar's dress, figures small against landscape, composition balanced like a scroll painting, 1970s Taiwanese location film stock, restrained grain",
+    "video": "Peking-opera derived combat: a figure springs, is glimpsed mid-air for an instant, and lands elsewhere in the frame; bamboo sways and slashes past the lens; dust and leaves hang in the light",
+    "negatives": "soundstage backdrop, neon, modern clothing, glossy digital sheen, heavy colour gels, slow-motion, orange-and-teal grading, CGI creatures"
+  },
+  "camera": {
+    "preferredMoves": ["static", "whip pan", "pan left", "pan right", "tilt up", "handheld follow"],
+    "clause": "brief, decisive framing — the move ends before the eye settles"
+  },
+  "pacing": {
+    "shotSeconds": 3,
+    "note": "The glimpse: action is assembled from very short shots, some a quarter of a second, while spatial continuity is preserved. Ask for shorter shots than the genre default."
+  },
+  "grade": {
+    "saturation": 0.85,
+    "contrast": 1.18,
+    "gamma": 1.02,
+    "colorBalance": {
+      "shadowsBlue": 0.04,
+      "midtonesRed": 0.04,
+      "highlightsRed": 0.03
+    },
+    "grain": 4
+  },
+  "notes": "Opposite of Shaw on colour: desaturated, natural light, real locations. The energy comes from cutting, not from the palette — so the pack pushes contrast and pulls saturation."
+}
